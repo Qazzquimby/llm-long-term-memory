@@ -1,12 +1,12 @@
 import json
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 import sqlite3
 import numpy as np
 from pathlib import Path
-import tiktoken
 
+from commands import SYSTEM_PROMPT
 from core import MODEL, Prompt
 
 
@@ -65,29 +65,71 @@ class MemorySystem:
         conn.commit()
         conn.close()
 
-    async def create_scene(self, content: str, title: str = None, tags: List[str] = None) -> Scene:
+    async def create_scene(self, content: str, title: str = None) -> Scene:
         timestamp = datetime.now().isoformat()
         scene_id = f"scene_{timestamp}"
         
-        # Generate summary using the Prompt engine
+        # Get existing tags from database for matching
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute('SELECT tags FROM scenes')
+        existing_tags = set()
+        for row in c.fetchall():
+            if row[0]:
+                existing_tags.update(json.loads(row[0]))
+        conn.close()
+
+        # Generate summary and suggest tags using the Prompt engine
         prompt = Prompt()
-        prompt.add_message(f"""Summarize the key points you want to remember:
+        prompt.add_message(f"""Given this conversation:
 
         {content}
+
+        1. Provide a concise summary of the key points.
+        2. Suggest appropriate tags. Consider these existing tags: {', '.join(existing_tags)}
+        3. List any notes pages that should be updated based on this conversation.
+
+        Format your response as:
+        Summary: <summary>
+        Tags: <comma-separated tags>
+        Update Notes: <comma-separated page titles>""")
         
-        Summary:""")
-        summary = prompt.run(MODEL, should_print=False)
+        response = prompt.run(MODEL, should_print=False)
+        
+        # Parse response
+        parts = response.split('\n')
+        summary = parts[0].replace('Summary: ', '').strip()
+        tags = [t.strip() for t in parts[1].replace('Tags: ', '').split(',')]
+        notes_to_update = [n.strip() for n in parts[2].replace('Update Notes: ', '').split(',')]
         
         scene = Scene(
             id=scene_id,
             timestamp=timestamp,
             summary=summary,
             content=content,
-            tags=tags or [],
-            embedding=None  # We'll add embedding support later
+            tags=tags,
+            embedding=None
         )
         
         self._save_scene(scene)
+        
+        # Update each notes page
+        for page_title in notes_to_update:
+            if page_title:
+                prompt = Prompt()
+                prompt.add_message(f"""Update the notes page "{page_title}" with new information from this scene:
+
+                Current scene content:
+                {content}
+
+                Current scene summary:
+                {summary}
+
+                Provide the complete updated content for this notes page.""")
+                
+                updated_content = prompt.run(MODEL, should_print=False)
+                await self.update_notes_page(page_title, updated_content, scene_id)
+        
         return scene
 
     # async def get_embedding(self, text: str) -> List[float]:
@@ -155,12 +197,10 @@ class MemorySystem:
 
         Please provide an updated notes entry that incorporates the new information while maintaining existing relevant details."""
 
-        update_response = await completion(
-            model="gpt-4",
-            messages=[{"role": "user", "content": update_prompt}]
-        )
+        prompt = Prompt().add_message(update_prompt, role="system")
+        response = prompt.run(model=MODEL, should_print=False)
 
-        updated_content = update_response.choices[0].message.content
+        updated_content = response
 
         # Update page data
         page_data['content'] = updated_content
@@ -249,7 +289,7 @@ class MemorySystem:
 
     async def extract_entities(self, text: str) -> Dict[str, List[str]]:
         """Extract entities (characters, locations, items) from text."""
-        prompt = f"""Extract entities from the following text, categorized by type:
+        extract_prompt = f"""Extract entities from the following text, categorized by type:
 
         Text: {text}
 
@@ -259,12 +299,11 @@ class MemorySystem:
         - items
         - concepts"""
 
-        response = await completion(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}]
-        )
+        prompt = Prompt().add_message(extract_prompt, role="system")
 
-        return json.loads(response.choices[0].message.content)
+        response = prompt.run(model=MODEL)
+
+        return json.loads(response)
 
     async def get_relevant_info(self, message: str) -> Dict[str, Any]:
         """Get all relevant information for a message."""
@@ -304,59 +343,59 @@ class MemorySystem:
         }
 
     async def process_message(self, message: str, role: str = "user") -> str:
-        """Process a message and generate a response."""
+        """Process a message and generate a response using the Prompt engine."""
         # Add message to conversation history
         self.conversation_history.append({"role": role, "content": message})
-
-        # Check for scene change
-        if role == "user" and await self.detect_scene_change(message):
-            # Create new scene from current conversation
-            current_content = "\n".join(
-                [m["content"] for m in self.conversation_history])
-            entities = await self.extract_entities(current_content)
-
-            self.current_scene = await self.create_scene(
-                raw_content=current_content,
-                characters=entities["characters"],
-                tags=[item for category in entities.values() for item in category]
-            )
-
-            # Clear conversation history
-            self.conversation_history = []
 
         if role == "user":
             # Get relevant information
             relevant_info = await self.get_relevant_info(message)
-
-            # Create prompt with context
-            context_prompt = "Relevant information:\n\n"
-
+            
+            # Create new prompt with system message
+            prompt = Prompt()
+            prompt.add_message(SYSTEM_PROMPT, role="system")
+            
+            # Add context from notes pages and scenes
+            context = []
+            
             # Add notes pages
             for title, page in relevant_info["notes_pages"].items():
-                context_prompt += f"About {title}:\n{page.content}\n\n"
-
+                context.append(f"notes page - {title}:\n{page.content}")
+            
             # Add similar scenes
             for scene in relevant_info["similar_scenes"]:
-                context_prompt += f"Related event:\n{scene.summary}\n\n"
+                context.append(f"Related scene ({scene.timestamp}):\n{scene.summary}")
+            
+            if context:
+                context_message = "Relevant context:\n\n" + "\n\n".join(context)
+                prompt.add_message(context_message, role="system")
+            
+            # Add recent conversation history
+            for msg in self.conversation_history[-5:]:
+                prompt.add_message(msg["content"], role=msg["role"])
+            
+            # Get response from LLM
+            response = prompt.run(MODEL, should_print=False)
+            
+            # Process any commands in the response
+            if "/scene" in response:
+                # Extract scene title if provided
+                title = None
+                if "/scene " in response:
+                    title = response.split("/scene ", 1)[1].split("\n")[0].strip()
+                
+                # Create new scene from current conversation
+                content = "\n".join([m["content"] for m in self.conversation_history])
+                await self.create_scene(content=content, title=title)
+                self.conversation_history = []
 
-            # Add conversation history
-            conversation_context = "\n".join([
-                f"{m['role']}: {m['content']}"
-                for m in self.conversation_history[-5:]  # Last 5 messages
-            ])
-
-            prompt = f"""{context_prompt}
-
-            Recent conversation:
-            {conversation_context}
-
-            Respond naturally as an RPG character, incorporating relevant information from memory where appropriate, but without explicitly mentioning the memory system."""
-
-            response = await completion(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}]
-            )
-
-            return response.choices[0].message.content
+            # Remove command text from response before returning
+            clean_response = response
+            for cmd in ["/scene", "/search", "/notes"]:
+                if cmd in clean_response:
+                    parts = clean_response.split(cmd)
+                    clean_response = parts[0] + "".join(p.split("\n", 1)[1] if "\n" in p else "" for p in parts[1:])
+            
+            return clean_response.strip()
 
 
