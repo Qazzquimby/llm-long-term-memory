@@ -1,14 +1,13 @@
 import json
 from datetime import datetime
 from typing import List, Dict, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import sqlite3
-from pathlib import Path
 import numpy as np
-from litellm import completion
+from pathlib import Path
 import tiktoken
 
-from core import MODEL
+from core import MODEL, Prompt
 
 
 @dataclass
@@ -16,14 +15,13 @@ class Scene:
     id: str
     timestamp: str
     summary: str
-    raw_content: str
-    characters: List[str]
+    content: str
     tags: List[str]
     embedding: Optional[List[float]] = None
 
 
 @dataclass
-class WikiPage:
+class NotesPage:
     title: str
     content: str
     last_updated: str
@@ -32,11 +30,10 @@ class WikiPage:
 
 
 class MemorySystem:
-    def __init__(self, db_path: str = "memory.db", model: str = None):
-        self.db_path = db_path
-        self.model = model or MODEL
+    def __init__(self, db_path: str = "memory.db"):
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(exist_ok=True)
         self.setup_database()
-        self.tokenizer = tiktoken.encoding_for_model(self.model)
         self.current_scene = None
         self.conversation_history = []
 
@@ -44,21 +41,19 @@ class MemorySystem:
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
 
-        # Create tables
         c.execute('''
             CREATE TABLE IF NOT EXISTS scenes (
                 id TEXT PRIMARY KEY,
                 timestamp TEXT,
                 summary TEXT,
-                raw_content TEXT,
-                characters TEXT,
+                content TEXT,
                 tags TEXT,
                 embedding BLOB
             )
         ''')
 
         c.execute('''
-            CREATE TABLE IF NOT EXISTS wiki_pages (
+            CREATE TABLE IF NOT EXISTS notes_pages (
                 title TEXT PRIMARY KEY,
                 content TEXT,
                 last_updated TEXT,
@@ -70,57 +65,39 @@ class MemorySystem:
         conn.commit()
         conn.close()
 
-    async def create_scene(self, raw_content: str, characters: List[str],
-                           tags: List[str]) -> Scene:
-        # Generate scene ID
+    async def create_scene(self, content: str, title: str = None, tags: List[str] = None) -> Scene:
         timestamp = datetime.now().isoformat()
         scene_id = f"scene_{timestamp}"
+        
+        # Generate summary using the Prompt engine
+        prompt = Prompt()
+        prompt.add_message(f"""Summarize the key points you want to remember:
 
-        # Generate summary using LLM
-        summary_prompt = f"""Summarize the following scene concisely, focusing on key events and character developments:
-
-        {raw_content}
-
-        Summary:"""
-
-        summary_response = await completion(
-            model="gpt-4",
-            messages=[{"role": "user", "content": summary_prompt}]
-        )
-        summary = summary_response.choices[0].message.content
-
-        # Generate embedding for the summary
-        embedding = await self.get_embedding(summary)
-
+        {content}
+        
+        Summary:""")
+        summary = prompt.run(MODEL, should_print=False)
+        
         scene = Scene(
             id=scene_id,
             timestamp=timestamp,
             summary=summary,
-            raw_content=raw_content,
-            characters=characters,
-            tags=tags,
-            embedding=embedding
+            content=content,
+            tags=tags or [],
+            embedding=None  # We'll add embedding support later
         )
-
-        # Save to database
+        
         self._save_scene(scene)
-
-        # Update wiki pages for all related entities
-        for character in characters:
-            await self.update_wiki_page(character, raw_content, scene_id)
-        for tag in tags:
-            await self.update_wiki_page(tag, raw_content, scene_id)
-
         return scene
 
-    async def get_embedding(self, text: str) -> List[float]:
-        # Get embedding using your preferred embedding model
-        # This is a placeholder - you'd want to use a real embedding service
-        response = await completion(
-            model="text-embedding-ada-002",
-            messages=[{"role": "user", "content": text}]
-        )
-        return response.data[0].embedding
+    # async def get_embedding(self, text: str) -> List[float]:
+    #     # Get embedding using your preferred embedding model
+    #     # This is a placeholder - you'd want to use a real embedding service
+    #     response = await completion(
+    #         model="text-embedding-ada-002",
+    #         messages=[{"role": "user", "content": text}]
+    #     )
+    #     return response.data[0].embedding
 
     def _save_scene(self, scene: Scene):
         conn = sqlite3.connect(self.db_path)
@@ -128,14 +105,13 @@ class MemorySystem:
 
         c.execute('''
             INSERT OR REPLACE INTO scenes
-            (id, timestamp, summary, raw_content, characters, tags, embedding)
+            (id, timestamp, summary, content, tags, embedding)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             scene.id,
             scene.timestamp,
             scene.summary,
-            scene.raw_content,
-            json.dumps(scene.characters),
+            scene.content,
             json.dumps(scene.tags),
             np.array(scene.embedding).tobytes() if scene.embedding else None
         ))
@@ -143,12 +119,12 @@ class MemorySystem:
         conn.commit()
         conn.close()
 
-    async def update_wiki_page(self, title: str, new_content: str, scene_id: str):
+    async def update_notes_page(self, title: str, new_content: str, scene_id: str):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
 
         # Get existing page if it exists
-        c.execute('SELECT * FROM wiki_pages WHERE title = ?', (title,))
+        c.execute('SELECT * FROM notes_pages WHERE title = ?', (title,))
         result = c.fetchone()
 
         if result:
@@ -173,11 +149,11 @@ class MemorySystem:
 
         {new_content}
 
-        And the existing wiki entry:
+        And the existing notes entry:
 
         {page_data['content']}
 
-        Please provide an updated wiki entry that incorporates the new information while maintaining existing relevant details."""
+        Please provide an updated notes entry that incorporates the new information while maintaining existing relevant details."""
 
         update_response = await completion(
             model="gpt-4",
@@ -194,7 +170,7 @@ class MemorySystem:
 
         # Save to database
         c.execute('''
-            INSERT OR REPLACE INTO wiki_pages
+            INSERT OR REPLACE INTO notes_pages
             (title, content, last_updated, related_tags, related_scenes)
             VALUES (?, ?, ?, ?, ?)
         ''', (
@@ -249,15 +225,15 @@ class MemorySystem:
         conn.close()
         return result
 
-    def get_wiki_page(self, title: str) -> Optional[WikiPage]:
+    def get_notes_page(self, title: str) -> Optional[NotesPage]:
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
 
-        c.execute('SELECT * FROM wiki_pages WHERE title = ?', (title,))
+        c.execute('SELECT * FROM notes_pages WHERE title = ?', (title,))
         result = c.fetchone()
 
         if result:
-            page = WikiPage(
+            page = NotesPage(
                 title=result[0],
                 content=result[1],
                 last_updated=result[2],
@@ -270,54 +246,6 @@ class MemorySystem:
         conn.close()
         return None
 
-
-# Example usage:
-async def main():
-    memory = MemorySystem()
-
-    # Create a new scene
-    scene = await memory.create_scene(
-        raw_content="Alice and Bob met in the garden. Alice showed Bob her new sword, which glowed with a faint blue light.",
-        characters=["Alice", "Bob"],
-        tags=["garden", "magic items", "sword"]
-    )
-
-    # Search for similar scenes
-    similar_scenes = await memory.search_similar_scenes("magical weapons")
-
-    # Get wiki page for a character
-    alice_page = memory.get_wiki_page("Alice")
-
-    async def detect_scene_change(self, message: str) -> bool:
-        """Detect if a message indicates a scene change."""
-        scene_indicators = [
-            "/scene",  # Explicit command
-            "later that",
-            "the next",
-            "meanwhile",
-            "elsewhere",
-            "after a while",
-            "some time",
-            "at the same time",
-        ]
-
-        # Check for explicit indicators
-        if any(indicator in message.lower() for indicator in scene_indicators):
-            return True
-
-        # Use LLM to detect implicit scene changes
-        prompt = f"""Analyze if this message indicates a scene change (like a significant shift in time, location, or context):
-
-        Message: {message}
-
-        Respond with 'yes' or 'no'."""
-
-        response = await completion(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        return response.choices[0].message.content.strip().lower() == "yes"
 
     async def extract_entities(self, text: str) -> Dict[str, List[str]]:
         """Extract entities (characters, locations, items) from text."""
@@ -343,34 +271,34 @@ async def main():
         # Extract entities
         entities = await self.extract_entities(message)
 
-        # Get wiki pages for all entities
-        wiki_pages = {}
+        # Get notes pages for all entities
+        notes_pages = {}
         for category in entities.values():
             for entity in category:
-                page = self.get_wiki_page(entity)
+                page = self.get_notes_page(entity)
                 if page:
-                    wiki_pages[entity] = page
+                    notes_pages[entity] = page
 
         # Get similar scenes
         similar_scenes = await self.search_similar_scenes(message, n=3)
 
-        # Get related entities from wiki pages
+        # Get related entities from notes pages
         related_entities = set()
-        for page in wiki_pages.values():
+        for page in notes_pages.values():
             # Extract entities from page content
             page_entities = await self.extract_entities(page.content)
             for category in page_entities.values():
                 related_entities.update(category)
 
-        # Get wiki pages for related entities
+        # Get notes pages for related entities
         for entity in related_entities:
-            if entity not in wiki_pages:
-                page = self.get_wiki_page(entity)
+            if entity not in notes_pages:
+                page = self.get_notes_page(entity)
                 if page:
-                    wiki_pages[entity] = page
+                    notes_pages[entity] = page
 
         return {
-            "wiki_pages": wiki_pages,
+            "notes_pages": notes_pages,
             "similar_scenes": similar_scenes,
             "entities": entities
         }
@@ -403,8 +331,8 @@ async def main():
             # Create prompt with context
             context_prompt = "Relevant information:\n\n"
 
-            # Add wiki pages
-            for title, page in relevant_info["wiki_pages"].items():
+            # Add notes pages
+            for title, page in relevant_info["notes_pages"].items():
                 context_prompt += f"About {title}:\n{page.content}\n\n"
 
             # Add similar scenes
