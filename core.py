@@ -8,6 +8,8 @@ litellm.modify_params = True
 # os.environ["LITELLM_LOG"] = "DEBUG"
 # litellm.set_verbose = True
 
+HUMAN_MOCK = True
+
 
 # Load API keys from environment variables or dev files
 def get_api_key(key_name):
@@ -46,46 +48,49 @@ class Prompt:
         return self
 
     def run(self, model, should_print=True, api_key=None) -> str:
-        try:
-            # Use the provided API key or the one from the environment
-            if api_key:
-                os.environ["OPENROUTER_API_KEY"] = api_key
-            if not os.environ.get("OPENROUTER_API_KEY"):
-                raise ValueError("No API key provided")
-
-            response = completion(
-                model=model,
-                messages=self.messages,
-                timeout=60,
-                num_retries=2,
-                # fallbacks=[
-                #     "openrouter/openai/gpt-4o-mini",
-                #     "openrouter/nousresearch/hermes-3-llama-3.1-405b:free",
-                #     "openrouter/meta-llama/llama-3.1-8b-instruct:free",
-                # ],
-            )
-        except Exception as e:
-            print("COMPLETION FAILED. Try to manually fix before continuing.", e)
+        if HUMAN_MOCK:
+            print("\nMOCK MODE: Please provide a response for the following prompt:\n")
+            print("Context:")
+            for msg in self.messages:
+                print(f"{msg['role']}: {msg['content']}\n")
+            response_text = input("Enter your response: ")
+        else:
             try:
+                # Use the provided API key or the one from the environment
+                if api_key:
+                    os.environ["OPENROUTER_API_KEY"] = api_key
+                if not os.environ.get("OPENROUTER_API_KEY"):
+                    raise ValueError("No API key provided")
+
                 response = completion(
                     model=model,
                     messages=self.messages,
                     timeout=60,
                     num_retries=2,
                 )
+                response_text = response["choices"][0]["message"]["content"]
             except Exception as e:
-                return f"(No response) {e}"
-        response_text = response["choices"][0]["message"]["content"]
+                print("COMPLETION FAILED. Try to manually fix before continuing.", e)
+                try:
+                    response = completion(
+                        model=model,
+                        messages=self.messages,
+                        timeout=60,
+                        num_retries=2,
+                    )
+                    response_text = response["choices"][0]["message"]["content"]
+                except Exception as e:
+                    return f"(No response) {e}"
         self.add_message(response_text, role="assistant")
         if should_print:
             print(f"Bot: {response_text}\n\n")
 
-        try:
-            total_cost = completion_cost(completion_response=response)
-        except:
-            total_cost = 0
-
-        self.total_cost += total_cost
+        if not HUMAN_MOCK:
+            try:
+                total_cost = completion_cost(completion_response=response)
+                self.total_cost += total_cost
+            except:
+                pass
         return response_text
 
 

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from commands import SYSTEM_PROMPT
 from core import MODEL, Prompt
+from embeddings import LocalEmbeddings
 
 
 @dataclass
@@ -36,6 +37,7 @@ class MemorySystem:
         self.setup_database()
         self.current_scene = None
         self.conversation_history = []
+        self.embedder = LocalEmbeddings()
 
     def setup_database(self):
         conn = sqlite3.connect(self.db_path)
@@ -132,14 +134,8 @@ class MemorySystem:
         
         return scene
 
-    # async def get_embedding(self, text: str) -> List[float]:
-    #     # Get embedding using your preferred embedding model
-    #     # This is a placeholder - you'd want to use a real embedding service
-    #     response = await completion(
-    #         model="text-embedding-ada-002",
-    #         messages=[{"role": "user", "content": text}]
-    #     )
-    #     return response.data[0].embedding
+    async def get_embedding(self, text: str) -> List[float]:
+        return self.embedder.embed(text)
 
     def _save_scene(self, scene: Scene):
         conn = sqlite3.connect(self.db_path)
@@ -224,9 +220,7 @@ class MemorySystem:
         conn.commit()
         conn.close()
 
-    async def search_similar_scenes(self, query: str, n: int = 5) -> List[Scene]:
-        # Get embedding for query
-        query_embedding = await self.get_embedding(query)
+    async def search_similar_scenes(self, query_embedding: List[float], n: int = 5) -> List[Scene]:
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -287,59 +281,21 @@ class MemorySystem:
         return None
 
 
-    async def extract_entities(self, text: str) -> Dict[str, List[str]]:
-        """Extract entities (characters, locations, items) from text."""
-        extract_prompt = f"""Extract entities from the following text, categorized by type:
-
-        Text: {text}
-
-        Return as JSON with categories:
-        - characters
-        - locations
-        - items
-        - concepts"""
-
-        prompt = Prompt().add_message(extract_prompt, role="system")
-
-        response = prompt.run(model=MODEL)
-
-        return json.loads(response)
-
-    async def get_relevant_info(self, message: str) -> Dict[str, Any]:
-        """Get all relevant information for a message."""
-        # Extract entities
-        entities = await self.extract_entities(message)
-
-        # Get notes pages for all entities
-        notes_pages = {}
-        for category in entities.values():
-            for entity in category:
-                page = self.get_notes_page(entity)
-                if page:
-                    notes_pages[entity] = page
-
-        # Get similar scenes
-        similar_scenes = await self.search_similar_scenes(message, n=3)
-
-        # Get related entities from notes pages
-        related_entities = set()
-        for page in notes_pages.values():
-            # Extract entities from page content
-            page_entities = await self.extract_entities(page.content)
-            for category in page_entities.values():
-                related_entities.update(category)
-
-        # Get notes pages for related entities
-        for entity in related_entities:
-            if entity not in notes_pages:
-                page = self.get_notes_page(entity)
-                if page:
-                    notes_pages[entity] = page
-
+    async def get_relevant_info(self) -> Dict[str, Any]:
+        """Get relevant notes and scenes based on recent conversation"""
+        # Combine recent messages into a single text for comparison
+        recent_text = " ".join([msg["content"] for msg in self.conversation_history[-3:]])
+        
+        # Get embedding for recent conversation
+        query_embedding = await self.get_embedding(recent_text)
+        
+        # Search for similar notes and scenes
+        similar_notes = await self.search_similar_notes(query_embedding, n=3)
+        similar_scenes = await self.search_similar_scenes(query_embedding, n=3)
+        
         return {
-            "notes_pages": notes_pages,
-            "similar_scenes": similar_scenes,
-            "entities": entities
+            "notes_pages": {note.title: note for note in similar_notes},
+            "similar_scenes": similar_scenes
         }
 
     async def process_message(self, message: str, role: str = "user") -> str:
@@ -349,7 +305,7 @@ class MemorySystem:
 
         if role == "user":
             # Get relevant information
-            relevant_info = await self.get_relevant_info(message)
+            relevant_info = await self.get_relevant_info()
             
             # Create new prompt with system message
             prompt = Prompt()
@@ -399,3 +355,40 @@ class MemorySystem:
             return clean_response.strip()
 
 
+    async def search_similar_notes(self, query_embedding: List[float], n: int = 3) -> List[NotesPage]:
+        """Search for notes pages similar to the query embedding"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        # Get all notes pages
+        c.execute('SELECT * FROM notes_pages')
+        pages = []
+        
+        for row in c.fetchall():
+            # Get embedding for notes content
+            page_embedding = await self.get_embedding(row[1])  # row[1] is content
+            if page_embedding:
+                # Calculate cosine similarity
+                similarity = np.dot(query_embedding, page_embedding) / (
+                    np.linalg.norm(query_embedding) * np.linalg.norm(page_embedding)
+                )
+                pages.append((similarity, row))
+        
+        # Sort by similarity and get top n
+        pages.sort(key=lambda x: x[0], reverse=True)
+        top_pages = pages[:n]
+        
+        # Convert to NotesPage objects
+        result = []
+        for _, row in top_pages:
+            page = NotesPage(
+                title=row[0],
+                content=row[1],
+                last_updated=row[2],
+                related_tags=json.loads(row[3]),
+                related_scenes=json.loads(row[4])
+            )
+            result.append(page)
+        
+        conn.close()
+        return result
