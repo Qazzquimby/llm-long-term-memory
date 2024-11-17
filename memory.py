@@ -81,20 +81,22 @@ class MemorySystem:
                 existing_tags.update(json.loads(row[0]))
         conn.close()
 
-        # Generate summary and suggest tags using the Prompt engine
-        prompt = Prompt()
-        prompt.add_message(f"""Given this conversation:
+        # Generate summary using the Prompt engine
+        summary_prompt = Prompt()
+        summary_prompt.add_message(f"""Given this conversation:
 
         {content}
 
         1. Provide a concise summary of the key points.
-        2. Suggest appropriate tags. Consider these existing tags: {', '.join(existing_tags)}
-        3. List any notes pages that should be updated based on this conversation.
+        2. List relevant tags. Consider these existing tags: {', '.join(existing_tags)}
+        3. Each tag has a notes page. List any tags that should have their notes page updated.
+        
+        You can make new tags as needed. Existing tags are: {', '.join(existing_tags)}
 
         Format your response as:
         Summary: <summary>
         Tags: <comma-separated tags>
-        Update Notes: <comma-separated page titles>""")
+        Update Notes: <comma-separated tags>""")
         
         response = prompt.run(MODEL, should_print=False)
         
@@ -249,10 +251,9 @@ class MemorySystem:
                 id=row[0],
                 timestamp=row[1],
                 summary=row[2],
-                raw_content=row[3],
-                characters=json.loads(row[4]),
-                tags=json.loads(row[5]),
-                embedding=np.frombuffer(row[6]).tolist() if row[6] else None
+                content=row[3],
+                tags=json.loads(row[4]),
+                embedding=np.frombuffer(row[5]).tolist() if row[5] else None
             )
             result.append(scene)
 
