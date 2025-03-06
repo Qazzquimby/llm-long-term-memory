@@ -7,7 +7,7 @@ import numpy as np
 from pathlib import Path
 
 from commands import SYSTEM_PROMPT
-from core import MODEL, Prompt
+from conversation import MODEL, Conversation
 from embeddings import LocalEmbeddings
 
 
@@ -82,7 +82,7 @@ class MemorySystem:
         conn.close()
 
         # Generate summary using the Prompt engine
-        summary_prompt = Prompt()
+        summary_prompt = Conversation()
         summary_prompt.add_message(f"""Given this conversation:
 
         {content}
@@ -120,7 +120,7 @@ class MemorySystem:
         # Update each notes page
         for page_title in notes_to_update:
             if page_title:
-                prompt = Prompt()
+                prompt = Conversation()
                 prompt.add_message(f"""Update the notes page "{page_title}" with new information from this scene:
 
                 Current scene content:
@@ -195,7 +195,7 @@ class MemorySystem:
 
         Please provide an updated notes entry that incorporates the new information while maintaining existing relevant details."""
 
-        prompt = Prompt().add_message(update_prompt, role="system")
+        prompt = Conversation().add_message(update_prompt, role="system")
         response = prompt.run(model=MODEL, should_print=False)
 
         updated_content = response
@@ -307,9 +307,10 @@ class MemorySystem:
         if role == "user":
             # Get relevant information
             relevant_info = await self.get_relevant_info()
+
             
             # Create new prompt with system message
-            prompt = Prompt()
+            prompt = Conversation()
             prompt.add_message(SYSTEM_PROMPT, role="system")
             
             # Add context from notes pages and scenes
