@@ -24,11 +24,12 @@ def get_api_key(key_name):
     return None
 
 
-MODEL = "openrouter/anthropic/sonnet_3.5"
+MODEL = "openrouter/anthropic/claude-3.7-sonnet"
 
 OPENAI_API_KEY = get_api_key("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = get_api_key("ANTHROPIC_API_KEY")
 OPENROUTER_API_KEY = get_api_key("OPENROUTER_API_KEY")
+
 
 def completion(model, messages, timeout=60, num_retries=2):
     response = requests.post(
@@ -73,12 +74,6 @@ class Conversation:
             response_text = input("Enter your response: ")
         else:
             try:
-                # Use the provided API key or the one from the environment
-                if api_key:
-                    os.environ["OPENROUTER_API_KEY"] = api_key
-                if not os.environ.get("OPENROUTER_API_KEY"):
-                    raise ValueError("No API key provided")
-
                 response = completion(
                     model=model,
                     messages=self.messages,
