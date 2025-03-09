@@ -65,18 +65,22 @@ class Conversation:
         self.messages.append({"role": role, "content": message, "ephemeral": ephemeral})
         return self
 
-    def run(self, model, should_print=True, api_key=None) -> str:
+    def run(self, model, should_print=True, api_key=None, max_messages=None) -> str:
+        if max_messages:
+            message_to_show = self.messages[-max_messages:]
+        else:
+            message_to_show = self.messages
         if HUMAN_MOCK:
             print("\nMOCK MODE: Please provide a response for the following prompt:\n")
             print("Context:")
-            for msg in self.messages:
+            for msg in message_to_show:
                 print(f"{msg['role']}: {msg['content']}\n")
             response_text = input("Enter your response: ")
         else:
             try:
                 response = completion(
                     model=model,
-                    messages=self.messages,
+                    messages=message_to_show,
                     timeout=60,
                     num_retries=2,
                 )
@@ -86,7 +90,7 @@ class Conversation:
                 try:
                     response = completion(
                         model=model,
-                        messages=self.messages,
+                        messages=message_to_show,
                         timeout=60,
                         num_retries=2,
                     )
@@ -98,6 +102,6 @@ class Conversation:
             print(f"Bot: {response_text}\n\n")
 
         self.messages = [
-            message for message in self.messages if not message["ephemeral"]
+            message for message in message_to_show if not message["ephemeral"]
         ]
         return response_text

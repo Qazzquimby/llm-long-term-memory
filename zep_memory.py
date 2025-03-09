@@ -20,27 +20,32 @@ class ZepMemoryPrompt(Conversation):
         self.user_id = user_id or uuid.uuid4().hex
         self.session_id = session_id or uuid.uuid4().hex
 
-        self.zep_client.user.add(
-            user_id=self.user_id,
-            email=f"user_{self.user_id}@example.com",
-            metadata={},
-        )
+        try:
+            self.zep_client.user.add(
+                user_id=self.user_id,
+                email=f"user_{self.user_id}@example.com",
+                metadata={},
+            )
+        except:
+            pass
 
-        self.zep_client.memory.add_session(
-            session_id=self.session_id, user_id=self.user_id, metadata={}
-        )
+        try:
+            self.zep_client.memory.add_session(
+                session_id=self.session_id, user_id=self.user_id, metadata={}
+            )
+        except:
+            pass
 
-    def add_message(self, message: str, role="user", ephemeral=False):
-        super().add_message(message, role)
-
-        if role == "user":
-            self._sync_message_to_zep(message=message, role=role, role_type=role)
-
-        return self
-
-    def _sync_message_to_zep(self, message: str, role: str, role_type: str):
-        zep_message = Message(role_type=role_type, role=role, content=message)
-        self.zep_client.memory.add(session_id=self.session_id, messages=[zep_message])
+    def _sync_messages_to_zep(self, messages: dict):
+        zep_messages = [
+            Message(
+                role_type=message["role"],
+                role=message["role"],
+                content=message["content"],
+            )
+            for message in messages
+        ]
+        self.zep_client.memory.add(session_id=self.session_id, messages=zep_messages)
 
     def search_memory(self, query: str, search_scope="facts"):
         try:
@@ -58,11 +63,29 @@ class ZepMemoryPrompt(Conversation):
             print(f"Error searching memory: {e}")
             return []
 
-    def run(self, model, should_print=True, api_key=None, include_memory=True) -> str:
+    def run(
+        self,
+        model,
+        should_print=True,
+        api_key=None,
+        include_memory=True,
+        max_messages=None,
+    ) -> str:
         if include_memory:
             self._inject_memories()
 
-        response_text = super().run(model, should_print, api_key)
+        response_text = super().run(
+            model=model,
+            should_print=should_print,
+            api_key=api_key,
+            max_messages=max_messages,
+        )
+
+        try:
+            last_messages = self.messages[:-2]
+            self._sync_messages_to_zep(messages=last_messages)
+        except Exception as e:
+            print("Couldn't add messages", e)
 
         return response_text
 
@@ -83,7 +106,6 @@ class ZepMemoryPrompt(Conversation):
                 [msg["content"] for msg in recent_messages]
             )
 
-            # Search for relevant facts
             facts_search = self.zep_client.memory.search_sessions(
                 user_id=self.user_id,
                 search_scope="facts",
@@ -94,7 +116,6 @@ class ZepMemoryPrompt(Conversation):
                 [r.fact for r in facts_search.results] if facts_search.results else []
             )
 
-            # Search for relevant messages
             messages_search = self.zep_client.memory.search_sessions(
                 user_id=self.user_id,
                 search_scope="messages",
@@ -123,15 +144,12 @@ class ZepMemoryPrompt(Conversation):
                 memory_parts.append(f"{i}. {fact}")
             memory_parts.append("")
 
-        session_search_results = memories.get("relevant_messages", [])
-        if session_search_results:
+        relevant_messages = memories.get("relevant_messages", [])
+        if relevant_messages:
             memory_parts.append("### Relevant conversation history:")
-            for session_search_results in session_search_results:
-                if (
-                    hasattr(session_search_results, "message")
-                    and session_search_results.message
-                ):
-                    message = session_search_results.message
+            for relevant_message in relevant_messages:
+                if hasattr(relevant_message, "message") and relevant_message.message:
+                    message = relevant_message.message
                     memory_parts.append(f"{message.role}: {message.content}")
             memory_parts.append("")
 
@@ -164,7 +182,9 @@ class ZepMemoryPrompt(Conversation):
 
 
 def main():
-    prompt = ZepMemoryPrompt()
+    user_id = "85a63a3747264ab2af5db3057f1f3d62"
+    session_id = "ea2cfe8101094286a884262c1e777d73"
+    prompt = ZepMemoryPrompt(user_id=user_id, session_id=session_id)
 
     for i in range(100):
         user_input = input()
@@ -176,3 +196,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# todo load past session memories. It seems to be starting fresh.
+#  chat history is really long

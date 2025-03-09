@@ -1,0 +1,197 @@
+D:\Users\User\PycharmProjects\llm_ltm\.venv\Scripts\python.exe -X pycache_prefix=C:\Users\User\AppData\Local\JetBrains\PyCharm2024.2\cpython-cache "E:/Program Files/PyCharm Professional/plugins/python-ce/helpers/pydev/pydevd.py" --multiprocess --qt-support=auto --client 127.0.0.1 --port 54670 --file D:\Users\User\PycharmProjects\llm_ltm\zep_memory.py
+Connected to pydev debugger (build 242.22855.92)
+Hi, restarting because we got a crash. You have a new memory system and we were talking about testing it on a Delta Green oneshot. Do you know what happens in Operation Fulminate: Sentinels of twilight ?
+Bot: I don't have specific information about "Operation Fulminate: Sentinels of Twilight" in my knowledge base. Delta Green scenarios like this typically involve agents investigating supernatural threats within the game's modern Lovecraftian horror setting, but I don't have details about this particular operation's plot, characters, or objectives.
+
+If you're planning to run this as a oneshot, I'd be happy to help with general Delta Green gameplay advice or discuss how my memory system could enhance the game experience without needing specific scenario details. For example, I could track character details, ongoing clues, or NPC interactions throughout our conversation.
+
+Would you like to share some elements of the scenario you're planning to run, or would you prefer assistance with general Delta Green gameplay mechanics?
+
+
+Ah no, sry you lost context. You have a new memory system, and we are testing that it works by having you play an adventure game. For now its manual, and we're just seeing if you forget what you're doing or get confused when things go on for too long. Its good you don't know the delta green operation, because it means you can play it without spoilers :p Want to pick a premade character?
+Bot: I understand now! We're testing my memory system by having me play through a Delta Green adventure game where I'll need to remember details over an extended conversation.
+
+I'd be happy to pick a premade character for this test. Delta Green typically features agents from various government or civilian backgrounds who are brought into the conspiracy to face cosmic horrors.
+
+Without knowing the specifics of Operation Fulminate, I'll need you to guide me through character selection. Could you please:
+
+1. Let me know what premade characters are available to choose from
+2. Provide a brief description of each (their profession, skills, background)
+
+Then I can select one that sounds interesting to play as we test this memory system. I'm looking forward to seeing how well I can maintain continuity throughout this adventure!
+
+
+Yeah, can you talk more naturally? You've got a lot of chatbot voice going on. Pick whichever of these you think you'd relate to or have the most fun with, no need to choose optimally. \n EASTER - An Archaeologist with the National Parks Service.
+Specialist skilled in archaeology, foreign languages, outdoorsmanship and forbidden lore
+\n Bot: Sorry about that! You're right, I can definitely be more natural.
+
+Oh, an archaeologist with the National Parks Service sounds perfect! I've always been fascinated by archaeology, and working for the Parks Service means getting to explore some amazing sites while also having federal credentials. I'll go with EASTER.
+
+Is there anything specific I should know about my character's background or skills before we start? Or should I just jump in and discover as we go?
+
+
+Bot: Nice, EASTER sounds even better now. Archaeology skills will be useful, and knowing foreign languages could come in handy for any strange inscriptions we find. The outdoorsmanship makes sense for someone in the Parks Service. And forbidden lore? Well, that's probably why Delta Green recruited me in the first place - I've seen things in ancient sites that most people wouldn't believe.
+
+So I'm playing an archaeologist who works for the National Parks Service but has also stumbled across some knowledge that most people don't have access to. I'm ready to start whenever you are!
+
+
+:( copy pasting text into chat, the newlines acted as sent messages. Bluhbluh. Okay I'll hand type some. Easter, archeologist. \n Eisenhower, kills people and breaks things \n Erebus, firefighter, physical allrounder, repairs and demolitions\n gagnon, federal agent, heavy ordnance, crim, illegal weapons \n genosha, private psychiatrist, first aid, bio \n gerard DOJ agent, beaurocrat, law \n randolph scientist, bio, chem, physics \n riddle, targeting officer in cia, con artist, spy, social engineer \n robert, computer scientist, sginals int, surveillance \n sellers, criminal doctor, medical all rounder \n shalimar fbi agent, all rounder with disguise, stealth, persuasion \n stuart, postal inspection service, accounting, cryptography, CS, forgery. \n\n\n I'll try to improve the input system later, oof. Please pick from this, dont feel like you have to be the archeologist
+Bot: Looking at all these options, I think I'll stick with EASTER, the archaeologist. The combination of academic knowledge, outdoor skills, and forbidden lore seems like it would be interesting to play. Plus, working for the National Parks Service gives a good reason to be involved in all sorts of weird sites across the country.
+
+Though I was tempted by Stuart from the Postal Inspection Service - there's something amusing about a mail inspector with cryptography skills getting pulled into cosmic horror!
+
+But yeah, I'll go with EASTER. I like the idea of someone who's studied ancient civilizations and maybe stumbled across something they shouldn't have in some remote dig site.
+
+
+I'd like to run this ruleslight using forged in the dark resolution, so the character sheet is a bit abstracted. Your name is Hyacinth D'Artagnan, you're in the National Park Service Archeology Program. A decade ago you dug up something impossible and dangerous, and Delta Green helped you survive it, and recruited you when you handled it well. You can delegate research tasks to your faithful graduate student, although you can't let him know what you need the information for. \n You know a ritual which makes people do what you want. By chanting and gesturing you can try to mentally overpower someone, forcing them to obey your commands. You've got access to an underground database of paywalled or unreleased papers and other grey literature. You know two foreign languages of your choice. You have claustrophobia. Your motivations are to solve mysteries, learn, and be remembered for your work. You're unusually tall and nimble, with big hands and long legs. You're not naturally gifted in any extent, but you outpace people with smart choices and hard work. Anything you'd like to add or change?
+Bot: I like this character a lot! Hyacinth D'Artagnan is a great name - has that perfect blend of scholarly and distinctive.
+
+For the two foreign languages, I think I'd choose Classical Greek and Navajo. Greek for studying ancient texts, and Navajo because it would be relevant to many National Park sites in the Southwest.
+
+I'd like to add that my graduate student's name is Marcus Wilkins, and he's brilliant but prone to asking too many questions. He's loyal to me because I pulled strings to get him funding when nobody else would take a chance on him.
+
+Also, I think Hyacinth carries a beaten-up leather satchel that belonged to her mentor, who disappeared under mysterious circumstances during an expedition to an unnamed cave system in northern Alaska. The satchel has hidden compartments where she keeps notes on the ritual and other things Delta Green wouldn't want getting out.
+
+Does that work for you?
+
+
+That's all great actually, I like your ideas. It's fourth of July weekend and you're in the car to visit your dad, some hours away in the countryside where you grew up, when your phone plays its gaudy alarm tune, for an alarm you didn't set. The alarm is titled "#113 Wilton Ave, 95389, 13:00". It's 9am now. Plugging the address into maps gives you an office building in Yosemite, very much not on the way to your dad's weekend visit.
+Bot: I stare at my phone, the gaudy alarm tune still blaring in the car. Dad is expecting me for our annual Fourth of July barbecue - he's been planning it for weeks. But this address in Yosemite? I know exactly what this is.
+
+Delta Green doesn't call unless something's very wrong.
+
+I sigh and pull over to the shoulder, weighing my options. Dad will be disappointed, but this is how it always goes. I grab my phone and call him.
+
+"Hey Dad, I'm so sorry but there's an emergency at work. Something about artifacts discovered during trail maintenance at Yosemite." I wince at the lie. "I've got to head there instead. I'll try to make it tomorrow, okay?"
+
+After the awkward call, I check my beaten-up leather satchel in the passenger seat. The hidden compartment with my ritual notes is secure. I pull up the GPS and set course for Yosemite. Four hours to get there, which means I should arrive right at 1pm if I don't stop.
+
+As I drive, I wonder what could be waiting for me there. Something archaeological, presumably, given my expertise. Something that couldn't wait until after the holiday weekend.
+
+
+Your dad's response is hard to hear - brushing it off as if he hadn't been talking about it for weeks. Maybe you can get time off work somehow. As you drive it begins to rain, at first pleasantly, until its hard enough your visibility is effected and you're running high beams to see the car ahead of you. The address berings you to Carlyle Accounting, alone on a street of permanently closeds and laundromats. A man with a thick moustache you've never seen before waves you in as you enter, leading you to a back room. No one you pass even looks up. He sits down in an impractically cramped room, just two chairs and a small empty desk, and gestures you to take the other one. Finally he speaks, squeaky "some weather huh? Sorry about your weekend."
+Bot: I shift uncomfortably in the small chair, my long legs making it awkward to fit in the cramped space. Dad's dismissive tone still stings in my mind as I glance at the mustachioed stranger.
+
+"Some weather," I agree flatly. "Let's skip the small talk. Delta Green doesn't set off alarms on holiday weekends for accounting consultations."
+
+I place my leather satchel on my lap, keeping it close. The rain hammers against the windows somewhere beyond this back room, a fitting soundtrack to what's likely to be an unpleasant conversation.
+
+"I just disappointed my father for the third year running, so please tell me this is actually important." My tone is professional but terse. I've been through this drill enough to know handlers don't appreciate wasted time, and neither do I.
+
+
+"Well you're called when you're needed, you know that," he says plainly. "Don't say the name without reason, you know that too." He sniffs and pulls some papers out of his bag. He slides a photo across the table to you, a young boy, staring at the camera, naked and absolutely covered in grime. "Brandon McGill of Topeka Kansas, missing child, 6 years old, recovered yesterday morning. Parent's contacted, they're on a flight over as we speak." He slides another picture over, of the same boy. "This is Brandon McGill at his 6th birthday. That was in 1980. The boy should be over 40 years old. Those parents are confused." He pushes over a napkin with a timetable drawn in pen. "You arrive asap. Parents arrive after some hours, depending on how badly this storm disrupts their flight. FBI have been assigned the case and we would love," he makes eye contact, "for this to be cleaned up before they embed themselves in it. Agent Delilah Sands put this operation together and she's already done everything she can to delay them. In the interest of time, you're all we have. You're the team, Hyacinth. We have no cover prepared for you, and no gear ready in the area. Operation Fulminate. Locate the child. Identify the child. Determine whether there is an unnatural threat in the area. Remove the unnatural threat. Make the outcome appear mundane. Was any of that unclear?"
+Bot: I study the photos carefully, the academic in me immediately noting the discrepancy. A six-year-old boy from 1980 who hasn't aged a day. The implications make my skin crawl.
+
+"Sorry for the slip," I say about mentioning the organization's name. "Won't happen again."
+
+I pick up the second photo, examining it more closely. "Where was the child recovered? And where is he now?" I tap my fingers on the table, already cataloging what I know about time anomalies from my years of research.
+
+"I'm the team," I repeat, hiding my frustration. Solo operations are dangerous, especially with something this bizarre. "Any local contacts I can leverage? Hospital staff? Park rangers? Someone who's seen the boy and might have information?"
+
+I take out my phone. "I need to call my graduate student, Marcus. I won't tell him specifics, but I need him to pull some research on similar cases - missing children reappearing decades later, unchanged."
+
+My mind races with possibilities - time slips, dimensional pockets, or something stranger. "Also, I need to know - was anything found with the boy? Clothing, artifacts, anything unusual on or near him when he was discovered?"
+
+
+He nods. "He disappeared and reappeared in the Hetch Hetchy area near a natural landmark called "The Devil's Chair". He was on a family vacation when he was lost. There was a search which turned up nothing. 'There and then not' was the phrase. Turned up naked, not holding anything. A park ranger named Tomika Gallegos brought him." Thunder crashes outside. "Her supervisor Douglass Keena contacted his parents and alerted the FBI. Plan is for Brandon to be held with the rangers until the FBI take over." He sniffs and glances at his watch. "Are you ready to go?"
+Bot: "Hetch Hetchy..." I murmur. "The Devil's Chair." I quickly jot the names down in a small notepad from my satchel.
+
+"Almost ready," I say, pulling out my phone. "Give me two minutes."
+
+I quickly dial Marcus, turning slightly away from the handler.
+
+"Marcus, it's me. Sorry to bother you on the holiday weekend, but I need some urgent research." I keep my voice low. "I need information on the Hetch Hetchy area in Yosemite, specifically a landmark called 'The Devil's Chair.' Historical records, local legends, anything unusual reported there. Also pull any archaeological surveys done in that area in the last fifty years." I pause. "And look up any historical disappearances in that region, especially children. Thanks. I'll check my email in an hour."
+
+I hang up, then send a quick text to my dad: "Really sorry about today. Will make it up to you, I promise."
+
+Standing up, I adjust my satchel over my shoulder. "I'm ready. Just need to know where exactly I'm headed and who my point of contact is there. I'm assuming I should present myself as Park Service Archaeology, investigating the area where the boy was found?"
+
+The thunder crashes again, and I can't help but feel it's an ominous sign of what's to come.
+
+
+"Hetch Hetchy Trailhead Station. You don't have a contact, you just have a job to do. Present yourself as you want - you don't have actual legal authority but it'd be convenient for them not to know that."
+Bot: I nod, understanding the situation perfectly. "So business as usual then."
+
+At least I have the advantage of actually working for the Park Service - my credentials are real, even if my authority in this specific situation isn't. The rangers will likely cooperate with one of their own, especially someone from the archaeology department showing interest in a strange occurrence.
+
+"I'll head to the Hetch Hetchy Trailhead Station right away. Try to find this Ranger Gallegos or Supervisor Keena, see the boy, and then get to the Devil's Chair before the FBI shows up." I adjust my satchel again, making sure the hidden compartment is secure. "I should have enough time to investigate if the weather doesn't slow things down too much."
+
+I stand up, showing my full height. "Anything else I should know before I go?"
+
+
+"I'm not withholding anything. You should get moving." The storm outside is somehow even worse than when you'd went in, and sheets of water are coming off the rooves and running down the streets. The park isn't far, though once you're on dirt roads you're driving through mud between dangerously swaying trees. Eventually you get to a T junction, with a gravel road leading left and right with tent sites dotted along the sides. You don't see any campers though.
+Bot: I grip the steering wheel tightly as my car navigates through the treacherous conditions. The storm seems almost supernatural in its intensity, washing away the holiday weekend campers who would normally pack this area.
+
+At the T-junction, I slow to a stop, peering through the rain-streaked windshield. No signs indicating which way to the Trailhead Station. I check my phone to see if Marcus has sent any information yet, then look for any park service maps I might have in my glove compartment.
+
+The empty campgrounds are eerie - Fourth of July weekend should have this place packed with families. The storm must have driven everyone away, or perhaps park management evacuated the area when the boy was found.
+
+"Alright," I mutter to myself, "let's try right first." I remember that most trailhead facilities tend to be positioned at the entrance points to wilderness areas rather than deep within them.
+
+I turn right cautiously, driving slowly to avoid sliding in the mud, keeping my eyes peeled for any buildings, vehicles, or signs that might indicate the ranger station.
+
+
+The path turns left and left again, looping around. You hadn't had to worry about missing the station, it's the only building around and visible even through the rain. A large gravel parking lot for campers, about a third full, then a smaller section for staff vehicles with familiar park jeeps, in front of an old two story ranger station and a freestanding radio tower. Around you the trees sway and rain drowns out any sound.
+Bot: I pull into the staff section of the parking lot, figuring my Park Service credentials give me that right. The two-story ranger station looms ahead, windows glowing with warm light that contrasts with the storm's fury. Before getting out, I check my phone once more for any updates from Marcus, then prepare myself mentally for what's ahead.
+
+I grab my satchel and a rain jacket from the back seat, quickly pulling it on before stepping out into the downpour. The rain immediately soaks through my pants and shoes as I dash toward the station entrance, hunched against the wind.
+
+Once inside, I shake off what water I can and straighten to my full height, scanning the interior for signs of activity. My Park Service ID is already in hand, ready to present to whoever I encounter first.
+
+"Hello?" I call out, looking for any rangers on duty. "Hyacinth D'Artagnan, National Park Service Archaeology Program. I'm here about the child found near the Devil's Chair. I need to speak with Ranger Gallegos or Supervisor Keena."
+
+My voice is confident and professional - I belong here, after all. I just need to find the right people and get access to both the boy and the location where he was found before time runs out.
+
+
+(ooc, would you rather I GM differently in any way?) You don't have an email from Marcus yet, but you don't have cell reception either... You get a bit of cover from a raised patio ahead of the door. The front door opens up to a staircase ahead of you, a room with several rangers - all looking 10 years younger than you - seated to your left, and a room of crowded conversation behind a door to your right. A blond woman stands up quickly as you enter, and responds "I'm Tomika. Good, okay." She squeezes her eyes closed for a second, dark bags beneath them. "Thought there'd be more of you." Two other rangers watch your exchange, pausing their conversation. "What can I do for you?"
+Bot: (Your GMing is great! No changes needed)
+
+I shake the rain from my hair and quickly assess Tomika - blonde, tired, younger than me, and clearly expecting more people. Interesting. My expression softens slightly as I recognize the exhaustion in her face.
+
+"Just me for now," I say with a reassuring smile. I glance at the other rangers briefly before focusing back on Tomika. "I need to see the boy immediately, and then you'll need to take me to the location where you found him - the Devil's Chair. I understand time is of the essence before... other agencies arrive."
+
+I lower my voice slightly, creating an air of professional confidentiality between us. "I work with the archaeological program, but my specific focus is on unusual phenomena at historical sites. Given what I've heard about this case, I need to examine both the child and the location before anyone else disturbs the evidence."
+
+I check my watch, calculating how much time I might have. "Has the boy said anything since you found him? And has anyone been allowed to question him?"
+
+
+"Wait wait" she shakes her head. "Before other agencies arrive? We called the FBI for help, and you're acting like they're a problem."
+Bot: I realize my mistake immediately - I've been too transparent about my actual mission. Time to pivot.
+
+"Sorry, poor choice of words," I say, backpedaling smoothly. "The FBI are absolutely the right people to handle this. What I meant was that archaeological sites often yield better evidence before too many people have walked through them. Once the FBI takes over, they'll have their own protocols that might not prioritize the historical aspects I'm interested in."
+
+I offer an apologetic smile. "I'm just eager to document the site professionally before it becomes a full crime scene. The Park Service has its own interest in understanding what happened there, beyond just the criminal investigation."
+
+I soften my tone further. "Look, this is clearly an unusual case. A child disappears in 1980 and reappears unchanged decades later? That's why they called in someone with my expertise. I specialize in unusual phenomena at historical sites. I promise I'm not looking to step on the FBI's toes - I just want to gather data that might otherwise be overlooked."
+
+I glance toward the room with the crowded conversation. "Is the boy in there? Can you tell me exactly what happened when you found him?"
+
+
+She takes this in. "I care about the boy's wellbeing a lot more than whatever historical aspects you're talking about. You're in casual clothes. Do you have some kind of ID on you?"
+Bot: "Of course," I say, reaching into my satchel. I pull out my National Park Service ID card, which identifies me as Dr. Hyacinth D'Artagnan, Archaeology Program. It's legitimate - my day job is real enough.
+
+"I was on my way to a family gathering when I got called in," I explain, gesturing to my casual attire. "Sorry about that - didn't have time to change. And you're absolutely right to be concerned about the boy's wellbeing. That's paramount."
+
+I put my ID back in my satchel and soften my approach. "Look, Tomika, I understand you're protective of him. You found him, after all. I'd feel the same way. But I'm here because this is an extremely unusual case that may have historical and archaeological implications. A boy disappears in 1980 and reappears four decades later, unchanged? That's unprecedented."
+
+I lower my voice. "The reason I'm interested in the Devil's Chair is that similar phenomena have been documented at other sites throughout history. Places where time seems to... work differently. I want to help understand what happened to this child, both for his sake and to prevent it from happening to anyone else."
+
+
+She leans in and turns away slightly from the other rangers. "Are you saying there's actually something supernatural going on?"
+Bot: I glance at the other rangers, then back to Tomika, lowering my voice further.
+
+"I'm saying I can't rule it out," I whisper. "Science hasn't explained how a child could vanish and reappear forty years later without aging. My department investigates unusual phenomena like this, though we don't typically use words like 'supernatural' in our reports."
+
+I hold her gaze steadily. "Tomika, you found him. Did you notice anything unusual at the site? Anything that made you uncomfortable or that you couldn't explain? Temperature changes, strange lights, odd sounds?"
+
+I take a small step closer. "Listen, I know how this sounds. But you and I both know this isn't a normal missing persons case. A boy from 1980 shows up unchanged in 2023? That defies explanation. I'm not here to create panic or spread wild theories - I'm here to gather evidence and protect people, including the boy."
+
+
+ooc: I'm pausing the game, the memory system isn't pruning your context properly and each message is getting expensive at this point, sorry. As a minor memory check, do you see what's wrong in the last few messages?
+Bot: Looking at my recent messages, I notice I incorrectly mentioned the year as 2023 in my last message when it should be the current year (likely 2025 based on the memory system timestamps). That's an error in my temporal framing of the situation.
+
+I also see that some of my character knowledge might be getting mixed up with player knowledge - I'm speaking about the boy from 1980 showing up unchanged with more certainty than my character should have, given the limited information I've been told in-game.
+
+The memory system does seem to be collecting facts but might not be pruning context effectively, as you mentioned. I notice some confusion in the memory entries about who called the FBI (the rangers did, not me).
+
+
