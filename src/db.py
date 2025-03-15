@@ -24,59 +24,73 @@ import enum
 
 Base = declarative_base()
 
-# Association tables
-message_fact_association = Table(
-    "message_fact_association",
+message_summary_fact_association = Table(
+    "message_summary_fact_association",
     Base.metadata,
-    Column("message_id", Integer, ForeignKey("messages.id")),
-    Column("fact_id", Integer, ForeignKey("facts.id")),
+    Column("message_summary_id", ForeignKey("message_summaries.id"), primary_key=True),
+    Column("fact_id", ForeignKey("facts.id"), primary_key=True),
 )
 
-message_entity_association = Table(
-    "message_entity_association",
+message_summary_entity_association = Table(
+    "message_summary_entity_association",
     Base.metadata,
-    Column("message_id", Integer, ForeignKey("messages.id")),
-    Column("entity_id", Integer, ForeignKey("entities.id")),
+    Column("message_summary_id", ForeignKey("message_summaries.id"), primary_key=True),
+    Column("entity_id", ForeignKey("entities.id"), primary_key=True),
+)
+
+fact_entity_association = Table(
+    "fact_entity_association",
+    Base.metadata,
+    Column("fact_id", ForeignKey("facts.id"), primary_key=True),
+    Column("entity_id", ForeignKey("entities.id"), primary_key=True),
 )
 
 
 class ContextItem(Base):
     __tablename__ = "context_items"
-    id = Column(Integer, primary_key=True)
-    usefulness_score = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=datetime.now)
-    last_updated = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    retired_by = Column(Integer, ForeignKey("context_items.id"), nullable=True)
+    __mapper_args__ = {"polymorphic_on": "type", "polymorphic_identity": "context_item"}
+    type: Mapped[str] = mapped_column(String(50))
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usefulness_score: Mapped[float] = mapped_column(default=0.0)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    last_updated: Mapped[datetime] = mapped_column(
+        default=datetime.now, onupdate=datetime.now
+    )
+    retired_by: Mapped[int] = mapped_column(
+        ForeignKey("context_items.id"), nullable=True
+    )
 
 
-class KeyInfoSummary(ContextItem):
-    __tablename__ = "key_info_summaries"
-    id = Column(Integer, ForeignKey("context_items.id"), primary_key=True)
-    content = Column(Text)
+class SenderType(enum.Enum):
+    USER = "user"
+    SYSTEM = "system"
+    ASSISTANT = "assistant"
 
 
 class Message(ContextItem):
     __tablename__ = "messages"
-    id = Column(Integer, ForeignKey("context_items.id"), primary_key=True)
-    body = Column(Text)
-    sender = Column(String)
-    facts = relationship(
-        "Fact", secondary=message_fact_association, back_populates="messages"
-    )
-    entities = relationship(
-        "Entity", secondary=message_entity_association, back_populates="messages"
-    )
-    summary_id = Column(Integer, ForeignKey("message_summaries.id"))
+    __mapper_args__ = {"polymorphic_identity": "message"}
+
+    id: Mapped[int] = mapped_column(ForeignKey("context_items.id"), primary_key=True)
+    body: Mapped[str] = mapped_column(Text)
+    sender: Mapped[SenderType] = mapped_column(Enum(SenderType))
+
+    # gets retired by MessageSummary
 
 
 class MessageSummary(ContextItem):
     __tablename__ = "message_summaries"
-    id = Column(Integer, ForeignKey("context_items.id"), primary_key=True)
-    text_body = Column(Text)
-    contained_messages = relationship("Message", backref="containing_summary")
-    parent_summary_id = Column(Integer, ForeignKey("message_summaries.id"))
-    child_summaries = relationship(
-        "MessageSummary", backref="parent_summary", remote_side=[id]
+    __mapper_args__ = {"polymorphic_identity": "message_summary"}
+
+    id: Mapped[int] = mapped_column(ForeignKey("context_items.id"), primary_key=True)
+    text_body: Mapped[str] = mapped_column(Text)
+
+    facts: Mapped[List["Fact"]] = relationship(
+        secondary=message_summary_fact_association, back_populates="message_summaries"
+    )
+    entities: Mapped[List["Entity"]] = relationship(
+        secondary=message_summary_fact_association, back_populates="message_summaries"
     )
 
 
@@ -88,8 +102,12 @@ class Entity(Base):
 
     aliases: Mapped[List["EntityAlias"]] = relationship(back_populates="entity")
     facts: Mapped[List["Fact"]] = relationship(back_populates="entity")
+    message_summaries: Mapped[List["MessageSummary"]] = relationship(
+        secondary=message_summary_entity_association, back_populates="entities"
+    )
 
 
+# todo
 class EntityAlias(Base):
     __tablename__ = "entity_aliases"
     id = Column(Integer, primary_key=True)
@@ -105,34 +123,29 @@ class FactType(enum.Enum):
     THEORY = "theory"
 
 
-class Fact(Base):
+class Fact(ContextItem):
     __tablename__ = "facts"
-    id = Column(Integer, primary_key=True)
-    body = Column(Text)
-    entity_id = Column(Integer, ForeignKey("entities.id"))
-    entity = relationship("Entity", back_populates="facts")
-    importance = Column(Integer)
-    salience = Column(Integer)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    __mapper_args__ = {"polymorphic_identity": "fact"}
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    body: Mapped[str] = Column(Text)
+
+    importance: Mapped[int] = Column()
+    salience: Mapped[int] = Column()
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     fact_type = Column(Enum(FactType), default=FactType.BASE)
-    messages = relationship(
-        "Message", secondary=message_fact_association, back_populates="facts"
+
+    message_summaries: Mapped[List["MessageSummary"]] = relationship(
+        secondary=message_summary_entity_association, back_populates="entities"
     )
 
+    # todo
     # For theories
-    evidence_ids = Column(Integer, ForeignKey("facts.id"))
+    evidence_ids = Column(Integer, ForeignKey("facts.id"), nullable=True)
+
     # For objectives
-    parent_objective_id = Column(Integer, ForeignKey("facts.id"))
-
-
-class EntityFactSummary(Base):
-    __tablename__ = "entity_fact_summaries"
-    id = Column(Integer, primary_key=True)
-    summary = Column(Text)
-    entity_id = Column(Integer, ForeignKey("entities.id"))
-    entity = relationship("Entity", back_populates="fact_summary")
-    summarized_fact_ids = Column(String)  # Comma-separated list of fact IDs
+    parent_objective_id = Column(Integer, ForeignKey("facts.id"), nullable=True)
 
 
 def get_engine(db_url="sqlite:///memory.db"):
