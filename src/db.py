@@ -60,8 +60,8 @@ class ContextItem(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     usefulness_score: Mapped[int] = mapped_column(default=0)
-    importance: Mapped[int] = Column()
-    salience: Mapped[int] = Column()
+    importance: Mapped[int] = mapped_column()
+    salience: Mapped[int] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     last_updated: Mapped[datetime] = mapped_column(
         default=datetime.now, onupdate=datetime.now
@@ -86,11 +86,11 @@ class SenderType(enum.Enum):
 
 class Message(Base):
     __tablename__ = "messages"
-    __mapper_args__ = {"polymorphic_identity": "message"}
 
-    id: Mapped[int] = mapped_column(ForeignKey("context_items.id"), primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     body: Mapped[str] = mapped_column(Text)
     sender: Mapped[SenderType] = mapped_column(Enum(SenderType))
+    summary_id: Mapped[int] = mapped_column(ForeignKey("message_summaries.id"))
 
     summary: Mapped["MessageSummary"] = relationship(back_populates="messages")
 
@@ -107,15 +107,16 @@ class MessageSummary(ContextItem):
         secondary=message_summary_fact_association, back_populates="message_summaries"
     )
     entities: Mapped[List["Entity"]] = relationship(
-        secondary=message_summary_fact_association, back_populates="message_summaries"
+        secondary=message_summary_entity_association, back_populates="message_summaries"
     )
+    messages: Mapped[List["Message"]] = relationship(back_populates="summary")
 
 
 class Entity(Base):
     __tablename__ = "entities"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    brief: Mapped[str] = Column(Text)
+    brief: Mapped[str] = mapped_column(Text)
 
     aliases: Mapped[List["EntityAlias"]] = relationship(back_populates="entity")
     facts: Mapped[List["Fact"]] = relationship(
@@ -129,9 +130,9 @@ class Entity(Base):
 class EntityAlias(Base):
     __tablename__ = "entity_aliases"
 
-    id: Mapped[int] = Column(primary_key=True)
-    alias: Mapped[str] = Column(Text)
-    entity_id: Mapped[int] = Column(ForeignKey("entities.id"), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alias: Mapped[str] = mapped_column(Text)
+    entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"), nullable=False)
 
     entity: Mapped["Entity"] = relationship(back_populates="aliases")
 
@@ -147,12 +148,9 @@ class Fact(ContextItem):
     __tablename__ = "facts"
     __mapper_args__ = {"polymorphic_identity": "fact"}
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    body: Mapped[str] = Column(Text)
-
-    created_at: Mapped[datetime] = Column(default=datetime.now)
-    updated_at: Mapped[datetime] = Column(default=datetime.now, onupdate=datetime.now)
-    fact_type: Mapped[FactType] = Column(Enum(FactType), default=FactType.BASE)
+    id: Mapped[int] = mapped_column(ForeignKey("context_items.id"), primary_key=True)
+    body: Mapped[str] = mapped_column(Text)
+    fact_type: Mapped[FactType] = mapped_column(Enum(FactType), default=FactType.BASE)
 
     entities: Mapped[List["Entity"]] = relationship(
         secondary=entity_fact_association, back_populates="facts"
@@ -174,13 +172,20 @@ class Fact(ContextItem):
     evidence: Mapped[List["Fact"]] = relationship(
         secondary=theory_evidence_association, back_populates="supported_theories"
     )
-    relevant_question: Mapped["Fact"] = relationship(back_populates="possible_theories")
+    relevant_question_id: Mapped[int] = mapped_column(
+        ForeignKey("facts.id"), nullable=True
+    )
+    relevant_question: Mapped["Fact"] = relationship(
+        foreign_keys=[relevant_question_id], back_populates="possible_theories"
+    )
 
     # For objectives
-    parent_objective_id = Column(Integer, ForeignKey("facts.id"), nullable=True)
+    parent_objective_id: Mapped[int] = mapped_column(
+        ForeignKey("facts.id"), nullable=True
+    )
     parent_objective: Mapped["Fact"] = relationship(back_populates="child_objectives")
     child_objectives: Mapped[List["Fact"]] = relationship(
-        back_populates="parent_objective"
+        foreign_keys=[parent_objective_id], back_populates="parent_objective"
     )
 
 
