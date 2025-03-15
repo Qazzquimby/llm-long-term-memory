@@ -5,12 +5,12 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
-    Float,
     DateTime,
     ForeignKey,
     Table,
     Text,
     Enum,
+    CheckConstraint,
 )
 from sqlalchemy.orm import (
     declarative_base,
@@ -45,6 +45,13 @@ fact_entity_association = Table(
     Column("entity_id", ForeignKey("entities.id"), primary_key=True),
 )
 
+theory_evidence_association = Table(
+    "theory_evidence_association",
+    Base.metadata,
+    Column("theory_id", ForeignKey("facts.id"), primary_key=True),
+    Column("evidence_id", ForeignKey("facts.id"), primary_key=True),
+)
+
 
 class ContextItem(Base):
     __tablename__ = "context_items"
@@ -52,11 +59,20 @@ class ContextItem(Base):
     type: Mapped[str] = mapped_column(String(50))
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    usefulness_score: Mapped[float] = mapped_column(default=0.0)
+    importance: Mapped[int] = Column()
+    salience: Mapped[int] = Column()
+    usefulness_score: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     last_updated: Mapped[datetime] = mapped_column(
         default=datetime.now, onupdate=datetime.now
     )
+
+    __table_args__ = (
+        CheckConstraint(
+            "importance >= 0 AND importance <= 10 AND salience >= 0 AND salience <= 10"
+        ),
+    )
+
     retired_by: Mapped[int] = mapped_column(
         ForeignKey("context_items.id"), nullable=True
     )
@@ -107,13 +123,14 @@ class Entity(Base):
     )
 
 
-# todo
 class EntityAlias(Base):
     __tablename__ = "entity_aliases"
-    id = Column(Integer, primary_key=True)
-    alias = Column(String)
-    entity_id = Column(Integer, ForeignKey("entities.id"))
-    entity = relationship("Entity", back_populates="aliases")
+
+    id: Mapped[int] = Column(primary_key=True)
+    alias: Mapped[str] = Column(Text)
+    entity_id: Mapped[int] = Column(ForeignKey("entities.id"), nullable=False)
+
+    entity: Mapped["Entity"] = relationship(back_populates="aliases")
 
 
 class FactType(enum.Enum):
@@ -130,8 +147,6 @@ class Fact(ContextItem):
     id: Mapped[int] = mapped_column(primary_key=True)
     body: Mapped[str] = Column(Text)
 
-    importance: Mapped[int] = Column()
-    salience: Mapped[int] = Column()
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     fact_type = Column(Enum(FactType), default=FactType.BASE)
@@ -140,21 +155,30 @@ class Fact(ContextItem):
         secondary=message_summary_entity_association, back_populates="entities"
     )
 
-    # todo
     # For theories
-    evidence_ids = Column(Integer, ForeignKey("facts.id"), nullable=True)
+    evidence: Mapped[List["Fact"]] = relationship(
+        secondary=theory_evidence_association, back_populates="theories"
+    )
+    theories: Mapped[List["Fact"]] = relationship(
+        secondary=theory_evidence_association, back_populates="evidence"
+    )
 
     # For objectives
     parent_objective_id = Column(Integer, ForeignKey("facts.id"), nullable=True)
+    parent_objective: Mapped["Fact"] = relationship(back_populates="child_objectives")
+    child_objectives: Mapped[List["Fact"]] = relationship(
+        back_populates="parent_objective"
+    )
 
 
 def get_engine(db_url="sqlite:///memory.db"):
-    engine = create_engine(db_url)
-    Base.metadata.create_all(engine)
-    return engine
+    return create_engine(db_url)
 
-
-def get_session(engine=None):
+def get_sessionmaker(engine=None):
     engine = engine or get_engine()
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    return SessionLocal()
+    return sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Usage:
+# SessionLocal = get_sessionmaker()
+# with SessionLocal() as session:
+#     ...
