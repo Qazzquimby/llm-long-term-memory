@@ -1,0 +1,7 @@
+.aider*
+.env
+.idea/*
+.venv
+
+*_key.txt
+/zep/
