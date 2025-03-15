@@ -1,3 +1,5 @@
+from typing import List
+
 from sqlalchemy import (
     create_engine,
     Column,
@@ -10,7 +12,13 @@ from sqlalchemy import (
     Text,
     Enum,
 )
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.orm import (
+    declarative_base,
+    relationship,
+    sessionmaker,
+    mapped_column,
+    Mapped,
+)
 from datetime import datetime
 import enum
 
@@ -74,12 +82,12 @@ class MessageSummary(ContextItem):
 
 class Entity(Base):
     __tablename__ = "entities"
-    id = Column(Integer, primary_key=True)
-    aliases = relationship("EntityAlias", back_populates="entity")
-    brief = Column(Text)
-    facts = relationship("Fact", back_populates="entity")
-    fact_summary_id = Column(Integer, ForeignKey("entity_fact_summaries.id"))
-    fact_summary = relationship("EntityFactSummary", back_populates="entity")
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    brief: Mapped[str] = Column(Text)
+
+    aliases: Mapped[List["EntityAlias"]] = relationship(back_populates="entity")
+    facts: Mapped[List["Fact"]] = relationship(back_populates="entity")
 
 
 class EntityAlias(Base):
