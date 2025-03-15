@@ -1,5 +1,3 @@
-D:\Users\User\PycharmProjects\llm_ltm\.venv\Scripts\python.exe -X pycache_prefix=C:\Users\User\AppData\Local\JetBrains\PyCharm2024.2\cpython-cache "E:/Program Files/PyCharm Professional/plugins/python-ce/helpers/pydev/pydevd.py" --multiprocess --qt-support=auto --client 127.0.0.1 --port 54670 --file D:\Users\User\PycharmProjects\llm_ltm\zep_memory.py
-Connected to pydev debugger (build 242.22855.92)
 Hi, restarting because we got a crash. You have a new memory system and we were talking about testing it on a Delta Green oneshot. Do you know what happens in Operation Fulminate: Sentinels of twilight ?
 Bot: I don't have specific information about "Operation Fulminate: Sentinels of Twilight" in my knowledge base. Delta Green scenarios like this typically involve agents investigating supernatural threats within the game's modern Lovecraftian horror setting, but I don't have details about this particular operation's plot, characters, or objectives.
 
