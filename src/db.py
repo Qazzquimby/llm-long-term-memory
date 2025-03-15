@@ -38,8 +38,8 @@ message_summary_entity_association = Table(
     Column("entity_id", ForeignKey("entities.id"), primary_key=True),
 )
 
-fact_entity_association = Table(
-    "fact_entity_association",
+entity_fact_association = Table(
+    "entity_fact_association",
     Base.metadata,
     Column("fact_id", ForeignKey("facts.id"), primary_key=True),
     Column("entity_id", ForeignKey("entities.id"), primary_key=True),
@@ -59,9 +59,9 @@ class ContextItem(Base):
     type: Mapped[str] = mapped_column(String(50))
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usefulness_score: Mapped[int] = mapped_column(default=0)
     importance: Mapped[int] = Column()
     salience: Mapped[int] = Column()
-    usefulness_score: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     last_updated: Mapped[datetime] = mapped_column(
         default=datetime.now, onupdate=datetime.now
@@ -84,7 +84,7 @@ class SenderType(enum.Enum):
     ASSISTANT = "assistant"
 
 
-class Message(ContextItem):
+class Message(Base):
     __tablename__ = "messages"
     __mapper_args__ = {"polymorphic_identity": "message"}
 
@@ -92,15 +92,16 @@ class Message(ContextItem):
     body: Mapped[str] = mapped_column(Text)
     sender: Mapped[SenderType] = mapped_column(Enum(SenderType))
 
-    # gets retired by MessageSummary
+    summary: Mapped["MessageSummary"] = relationship(back_populates="messages")
 
 
+# todo may need an 'in world time' for fiction?
 class MessageSummary(ContextItem):
     __tablename__ = "message_summaries"
     __mapper_args__ = {"polymorphic_identity": "message_summary"}
 
     id: Mapped[int] = mapped_column(ForeignKey("context_items.id"), primary_key=True)
-    text_body: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text)
 
     facts: Mapped[List["Fact"]] = relationship(
         secondary=message_summary_fact_association, back_populates="message_summaries"
@@ -117,7 +118,9 @@ class Entity(Base):
     brief: Mapped[str] = Column(Text)
 
     aliases: Mapped[List["EntityAlias"]] = relationship(back_populates="entity")
-    facts: Mapped[List["Fact"]] = relationship(back_populates="entity")
+    facts: Mapped[List["Fact"]] = relationship(
+        secondary=entity_fact_association, back_populates="entities"
+    )
     message_summaries: Mapped[List["MessageSummary"]] = relationship(
         secondary=message_summary_entity_association, back_populates="entities"
     )
@@ -147,21 +150,31 @@ class Fact(ContextItem):
     id: Mapped[int] = mapped_column(primary_key=True)
     body: Mapped[str] = Column(Text)
 
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    fact_type = Column(Enum(FactType), default=FactType.BASE)
+    created_at: Mapped[datetime] = Column(default=datetime.now)
+    updated_at: Mapped[datetime] = Column(default=datetime.now, onupdate=datetime.now)
+    fact_type: Mapped[FactType] = Column(Enum(FactType), default=FactType.BASE)
+
+    entities: Mapped[List["Entity"]] = relationship(
+        secondary=entity_fact_association, back_populates="facts"
+    )
 
     message_summaries: Mapped[List["MessageSummary"]] = relationship(
-        secondary=message_summary_entity_association, back_populates="entities"
+        secondary=message_summary_fact_association, back_populates="message_summaries"
+    )
+    supported_theories: Mapped[List["Fact"]] = relationship(
+        secondary=theory_evidence_association, back_populates="evidence"
+    )
+
+    # For questions
+    possible_theories: Mapped[List["Fact"]] = relationship(
+        back_populates="relevant_question"
     )
 
     # For theories
     evidence: Mapped[List["Fact"]] = relationship(
-        secondary=theory_evidence_association, back_populates="theories"
+        secondary=theory_evidence_association, back_populates="supported_theories"
     )
-    theories: Mapped[List["Fact"]] = relationship(
-        secondary=theory_evidence_association, back_populates="evidence"
-    )
+    relevant_question: Mapped["Fact"] = relationship(back_populates="possible_theories")
 
     # For objectives
     parent_objective_id = Column(Integer, ForeignKey("facts.id"), nullable=True)
@@ -174,9 +187,11 @@ class Fact(ContextItem):
 def get_engine(db_url="sqlite:///memory.db"):
     return create_engine(db_url)
 
+
 def get_sessionmaker(engine=None):
     engine = engine or get_engine()
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 # Usage:
 # SessionLocal = get_sessionmaker()

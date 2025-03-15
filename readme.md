@@ -9,47 +9,49 @@ To create a seamless humanlike long term memory for an llm across serial convers
 
 KeyInfoSummary (potentially redundant given relevance and importance filtering of other context. Failsafe.)
 - A length capped summary of everything the llm should know at all times
+This is saved to file rather than db, as there's only one and it has no linking.
 
 ContextItem (base class for anything that can be presented as context)
 - usefulness score. Item is periodically reviewed if it was used when it was supplied. Score increases and decreases cumulatively.
+- 1-10 strategic importance
+- 1-10 emotional salience
+- time created, time last updated
+- retired_by, ContextItem, for use when merged into another item. If not null, this item should not be used.
 
-Messages (straight from the chat)
+Messages (Not important enough to be ContextItem. straight from the chat. Goes into MessageSumary)
 - body
 - sender
-- associated Facts
-- associated Entities
-- containing Summary
+- summary: MessageSummary
 - time sent
 
-MessageSummary (condensed paraphrasing of a block of memories. Summaries can have any number of levels of compression. A Summary1 is a summary of raw data. A Summary2 is a summary of Summary1s. This intentionally puts more weight on more recent additions, like how long term memory fades.)
-- text body
-- contained Messages
-- containing Summary
+MessageSummary (Subclass of ContextItem. A condensed paraphrasing of a block of memories. Summaries are later merged and condensed futher as they grow old)
+- body
+- related Facts
+- related Entities
 
 Entities (anything you might make into a wiki page)
 - aliases
 - Brief, a ~2 sentence summary
-- if many facts, a EntityFactSummary (Dossier?). Facts not in the summary are presented normally in addition.
 - Facts tagged with this Entity
-
-EntityFactSummary
-- A length capped summary of an entity's current Facts for cheaper presentation to the Assistant.
-- summarized Facts
+- MessageSummaries related to this Entity 
 
 Facts (statements in memory)
 - ~1 sentence body
 - list of related Entities
-- time created, time last updated
-- 1-10 strategic importance
-- 1-10 emotional salience
+- Supported Theories
 
 Questions (known unknowns, subtype of Fact)
-
-Objectives (terminal or belonging to a terminal objective, subtype of Fact)
-- owning Objective?
+- possible theories
 
 Theories (speculative facts, subtype of Fact)
 - evidence Facts
+- relevant question
+
+Objectives (terminal or belonging to a terminal objective, subtype of Fact)
+- parent objective?
+- child objective
+
+
 
 # Context presentation
 
@@ -68,9 +70,8 @@ For each message, the Assistant llm is given a body of Context including
 
 Order as
 - Key info
+- Relevant entity briefs
 - Message summaries, starting from most long scale to most recent.
-- Relevant EntityFactSummaries
-- Less relevant Entity Briefs
 - Most relevant
 	- Facts
 	- Theories
