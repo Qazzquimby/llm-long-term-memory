@@ -1,6 +1,4 @@
-import json
 import os
-import requests
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents
@@ -28,17 +26,31 @@ MODEL = "openrouter/anthropic/claude-3.7-sonnet"
 OPENROUTER_API_KEY = get_api_key("OPENROUTER_API_KEY")
 
 
-def completion(model, messages, timeout=60, num_retries=2):
-    response = requests.post(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        },
-        data=json.dumps(
-            {
-                "model": model.replace("openrouter/", ""),
-                "messages": messages,
-            }
-        ),
-    )
-    return response.json()
+import asyncio
+import aiohttp
+
+
+async def completion(model, messages, timeout=60, num_retries=0):
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+    }
+    data = {
+        "model": model.replace("openrouter/", ""),
+        "messages": messages,
+    }
+
+    async with aiohttp.ClientSession() as session:
+        for _ in range(1 + num_retries):
+            try:
+                async with session.post(
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json=data,
+                    timeout=timeout,
+                ) as response:
+                    return await response.json()
+            except aiohttp.ClientError as e:
+                print(f"Error: {e}")
+                if num_retries > 0:
+                    await asyncio.sleep(1)
+                    continue
