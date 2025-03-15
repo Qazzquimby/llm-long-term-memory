@@ -1,3 +1,4 @@
+import enum
 import os
 from pathlib import Path
 import asyncio
@@ -56,11 +57,17 @@ async def completion(model, messages, timeout=60, num_retries=0):
                     continue
 
 
+class Role(enum.Enum):
+    USER = "user"
+    SYSTEM = "system"
+    ASSISTANT = "assistant"
+
+
 class ChatMessage:
     def __init__(
         self,
         content: str,
-        role: Literal["user", "assistant", "system"] = "user",
+        role: Role = Role.USER,
         ephemeral=False,
         hidden=False,
     ):
@@ -78,6 +85,8 @@ class ChatMessage:
         self.role = role
         self.ephemeral = ephemeral
         self.hidden = hidden
+
+        self.num_words = len(content.split())
 
     def __str__(self):
         return f"{self.role}: {self.content}\n"
@@ -129,7 +138,7 @@ class Conversation:
                     response_text = response["choices"][0]["message"]["content"]
                 except Exception as e:
                     return f"(No response) {e}"
-        self.add_message(ChatMessage(content=response_text, role="assistant"))
+        self.add_message(ChatMessage(content=response_text, role=Role.ASSISTANT))
         if should_print:
             print(f"Bot: {response_text}\n\n")
 

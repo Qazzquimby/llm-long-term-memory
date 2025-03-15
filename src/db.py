@@ -22,6 +22,8 @@ from sqlalchemy.orm import (
 from datetime import datetime
 import enum
 
+from src.conversation import Role
+
 Base = declarative_base()
 
 message_summary_fact_association = Table(
@@ -78,18 +80,12 @@ class ContextItem(Base):
     )
 
 
-class SenderType(enum.Enum):
-    USER = "user"
-    SYSTEM = "system"
-    ASSISTANT = "assistant"
-
-
 class Message(Base):
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     body: Mapped[str] = mapped_column(Text)
-    sender: Mapped[SenderType] = mapped_column(Enum(SenderType))
+    sender: Mapped[Role] = mapped_column(Enum(Role))
     summary_id: Mapped[int] = mapped_column(ForeignKey("message_summaries.id"))
 
     summary: Mapped["MessageSummary"] = relationship(back_populates="messages")
