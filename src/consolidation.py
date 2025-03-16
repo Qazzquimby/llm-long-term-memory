@@ -90,7 +90,7 @@ RECENT MESSAGES:
 It's time to update and maintain your memory system based off of recent events.
 """
     # later run async
-    result = consolidator_agent.run_sync(prompt)
+    result = await consolidator_agent.run(prompt)
     return result  # todo use the result to update db
 
 
@@ -101,7 +101,8 @@ def get_consolidation_window(conversation: Conversation):
     split_index = 0
     total_words_in_window = 0
     while total_words_in_window < NUM_WORDS_TO_CONSOLIDATE:
-        split_index += 1
+        split_index += 2
+        total_words_in_window += non_hidden_messages[split_index - 1].num_words
         total_words_in_window += non_hidden_messages[split_index].num_words
 
     consolidate_window = non_hidden_messages[:split_index]

@@ -211,3 +211,9 @@ def get_sessionmaker(engine=None):
 # SessionLocal = get_sessionmaker()
 # with SessionLocal() as session:
 #     ...
+def get_db_factory():
+    engine = get_engine()
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    SessionLocal = get_sessionmaker()
+    return SessionLocal

@@ -91,8 +91,10 @@ class ChatMessage:
 
 
 class Conversation:
-    def __init__(self, add_message_callback=None):
-        self.messages: list[ChatMessage] = []
+    def __init__(self, messages=None, add_message_callback=None):
+        if messages is None:
+            messages = []
+        self.messages: list[ChatMessage] = messages
         self.add_message_callback = add_message_callback
 
     def add_message(self, message: ChatMessage, prepend=False):

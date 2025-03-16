@@ -21,13 +21,11 @@ Then I can select one that sounds interesting to play as we test this memory sys
 
 Yeah, can you talk more naturally? You've got a lot of chatbot voice going on. Pick whichever of these you think you'd relate to or have the most fun with, no need to choose optimally. \n EASTER - An Archaeologist with the National Parks Service.
 Specialist skilled in archaeology, foreign languages, outdoorsmanship and forbidden lore
-\n Bot: Sorry about that! You're right, I can definitely be more natural.
+Bot: Sorry about that! You're right, I can definitely be more natural.
 
 Oh, an archaeologist with the National Parks Service sounds perfect! I've always been fascinated by archaeology, and working for the Parks Service means getting to explore some amazing sites while also having federal credentials. I'll go with EASTER.
 
 Is there anything specific I should know about my character's background or skills before we start? Or should I just jump in and discover as we go?
-
-
 Bot: Nice, EASTER sounds even better now. Archaeology skills will be useful, and knowing foreign languages could come in handy for any strange inscriptions we find. The outdoorsmanship makes sense for someone in the Parks Service. And forbidden lore? Well, that's probably why Delta Green recruited me in the first place - I've seen things in ancient sites that most people wouldn't believe.
 
 So I'm playing an archaeologist who works for the National Parks Service but has also stumbled across some knowledge that most people don't have access to. I'm ready to start whenever you are!

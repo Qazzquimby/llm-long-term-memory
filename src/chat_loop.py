@@ -8,14 +8,19 @@ from prompt_toolkit import prompt, Application, PromptSession
 MAX_CONVERSATION_LENGTH = 1000  # preventing infinite loops
 
 
-async def conversation_loop(session: Session):
+async def conversation_loop(session: Session, previous_messages=None):
     def save_message(message: ChatMessage):
         if message.ephemeral:
             return
         session.add(Message(body=message.content, sender=message.role))
         session.commit()
 
-    conversation = Conversation(add_message_callback=save_message)
+    if previous_messages is None:
+        previous_messages = []
+
+    conversation = Conversation(
+        messages=previous_messages, add_message_callback=save_message
+    )
     prompt_session = PromptSession(message="You: ")
     for _ in range(MAX_CONVERSATION_LENGTH):
         # user_input = input("You: ")

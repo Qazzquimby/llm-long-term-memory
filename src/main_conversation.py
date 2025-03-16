@@ -5,15 +5,11 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from src.chat_loop import conversation_loop
 
 from src.conversation import MODEL, OPENROUTER_API_KEY
-from src.db import get_sessionmaker, get_engine, Base
+from src.db import get_db_factory
 
 
 async def main():
-    engine = get_engine()
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    SessionLocal = get_sessionmaker()
-
+    SessionLocal = get_db_factory()
     with SessionLocal() as session:
         await conversation_loop(session)
 
