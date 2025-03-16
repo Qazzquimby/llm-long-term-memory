@@ -2,7 +2,6 @@ import enum
 import os
 from pathlib import Path
 import asyncio
-from typing import Literal
 
 import aiohttp
 
@@ -12,7 +11,7 @@ for parent in PROJECT_ROOT:
         PROJECT_ROOT = parent
         break
 
-HUMAN_MOCK = False
+HUMAN_MOCK = True
 
 
 def get_api_key(key_name):
@@ -85,10 +84,10 @@ class ChatMessage:
         self.num_words = len(content.split())
 
     def __str__(self):
-        return f"{self.role}: {self.content}\n"
+        return f"{self.role.value}: {self.content}\n"
 
     def to_llm_friendly(self):
-        return {"role": self.role, "content": self.content}
+        return {"role": self.role.value, "content": self.content}
 
 
 class Conversation:
