@@ -71,15 +71,11 @@ class ChatMessage:
         ephemeral=False,
         hidden=False,
     ):
-        if role == "system":
-            role = "user"
+        if role == Role.SYSTEM:
+            role = Role.USER
             content = f"SYSTEM: {content}"
         if not content:
             raise ValueError("Message cannot be empty")
-        if role not in ["user", "assistant", "system"]:
-            raise ValueError(
-                f"Invalid role: {role}. Roles are 'user', 'assistant', 'system'"
-            )
 
         self.content = content
         self.role = role
@@ -90,6 +86,9 @@ class ChatMessage:
 
     def __str__(self):
         return f"{self.role}: {self.content}\n"
+
+    def to_llm_friendly(self):
+        return {"role": self.role, "content": self.content}
 
 
 class Conversation:
@@ -111,6 +110,7 @@ class Conversation:
         message_to_show = [msg for msg in self.messages if not msg.hidden]
         if max_messages:
             message_to_show = message_to_show[-max_messages:]
+
         if HUMAN_MOCK:
             print("\nMOCK MODE: Please provide a response for the following prompt:\n")
             print("Context:")
@@ -118,10 +118,13 @@ class Conversation:
                 print(msg)
             response_text = input("Enter your response: ")
         else:
+            llm_friendly_messages = [
+                message.to_llm_friendly() for message in message_to_show
+            ]
             try:
                 response = await completion(
                     model=model,
-                    messages=message_to_show,
+                    messages=llm_friendly_messages,
                     timeout=60,
                     num_retries=2,
                 )
@@ -131,7 +134,7 @@ class Conversation:
                 try:
                     response = await completion(
                         model=model,
-                        messages=message_to_show,
+                        messages=llm_friendly_messages,
                         timeout=60,
                         num_retries=2,
                     )

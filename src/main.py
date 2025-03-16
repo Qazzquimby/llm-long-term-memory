@@ -1,41 +1,16 @@
-from src.consolidation import should_consolidate, consolidate
-from src.conversation import Conversation, ChatMessage, MODEL, Role
-from src.db import get_sessionmaker, get_engine, Base, Message
-from sqlalchemy.orm import Session
-from prompt_toolkit import prompt
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
 
+from src.chat_loop import conversation_loop
 
-MAX_CONVERSATION_LENGTH = 1000  # preventing infinite loops
-
-
-async def conversation_loop(session: Session):
-    def save_message(message: ChatMessage):
-        if message.ephemeral:
-            return
-        session.add(Message(body=message.content, sender=message.role))
-        session.commit()
-
-    conversation = Conversation(add_message_callback=save_message)
-
-    for _ in range(MAX_CONVERSATION_LENGTH):
-        user_input = prompt("You: ")
-        conversation.add_message(message=ChatMessage(content=user_input))
-
-        # todo get context
-        context = ""
-        conversation.add_message(
-            message=ChatMessage(content=context, role=Role.SYSTEM, ephemeral=True),
-            prepend=True,
-        )
-        await conversation.run(MODEL)
-
-        if should_consolidate(conversation):
-            # todo dont await, let it run in parallel
-            await consolidate(session=session, conversation=conversation)
+from src.conversation import MODEL, OPENROUTER_API_KEY
+from src.db import get_sessionmaker, get_engine, Base
 
 
 async def main():
     engine = get_engine()
+    Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     SessionLocal = get_sessionmaker()
 
@@ -43,7 +18,24 @@ async def main():
         await conversation_loop(session)
 
 
+def little_main():
+    model = OpenAIModel(
+        MODEL.replace("openrouter/", ""),
+        provider=OpenAIProvider(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=OPENROUTER_API_KEY,
+        ),
+    )
+    agent = Agent(model)
+    result = agent.run_sync(
+        "What are two syllable words related to 'soul', possibly a prefix"
+    )
+    print(result)
+
+
 if __name__ == "__main__":
+    # little_main()
+
     import asyncio
 
     asyncio.run(main())

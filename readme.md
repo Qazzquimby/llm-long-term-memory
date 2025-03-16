@@ -5,6 +5,11 @@ To create a seamless humanlike long term memory for an llm across serial convers
 "Archivists" are separate llms doing memory tasks. The Assistant does not see Archivist chats, though changes the Archivists make will affect future Context given to the Assistant.
 
 
+# dev notes
+
+temporarily doing without questions, theories, objectives
+
+
 # Knowledge Base structure
 
 KeyInfoSummary (potentially redundant given relevance and importance filtering of other context. Failsafe.)
