@@ -3,9 +3,7 @@ from typing import List
 from sqlalchemy import (
     create_engine,
     Column,
-    Integer,
     String,
-    DateTime,
     ForeignKey,
     Table,
     Text,
@@ -61,13 +59,12 @@ class ContextItem(Base):
     type: Mapped[str] = mapped_column(String(50))
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    usefulness_score: Mapped[int] = mapped_column(default=0)
+
     importance: Mapped[int] = mapped_column()
     salience: Mapped[int] = mapped_column()
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
-    last_updated: Mapped[datetime] = mapped_column(
-        default=datetime.now, onupdate=datetime.now
-    )
+    created_at_message_index: Mapped[int] = mapped_column()
+    times_provided: Mapped[int] = mapped_column(default=0)
+    times_useful: Mapped[int] = mapped_column(default=0)
 
     __table_args__ = (
         CheckConstraint(
@@ -83,10 +80,12 @@ class ContextItem(Base):
 class Message(Base):
     __tablename__ = "messages"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     body: Mapped[str] = mapped_column(Text)
     sender: Mapped[Role] = mapped_column(Enum(Role))
-    summary_id: Mapped[int] = mapped_column(ForeignKey("message_summaries.id"))
+    summary_id: Mapped[int] = mapped_column(
+        ForeignKey("message_summaries.id"), nullable=True
+    )
 
     summary: Mapped["MessageSummary"] = relationship(back_populates="messages")
 
@@ -153,33 +152,47 @@ class Fact(ContextItem):
     )
 
     message_summaries: Mapped[List["MessageSummary"]] = relationship(
-        secondary=message_summary_fact_association, back_populates="message_summaries"
+        secondary=message_summary_fact_association, back_populates="facts"
     )
     supported_theories: Mapped[List["Fact"]] = relationship(
-        secondary=theory_evidence_association, back_populates="evidence"
+        secondary=theory_evidence_association,
+        primaryjoin="Fact.id==theory_evidence_association.c.evidence_id",
+        secondaryjoin="Fact.id==theory_evidence_association.c.theory_id",
+        back_populates="evidence",
     )
 
     # For questions
     possible_theories: Mapped[List["Fact"]] = relationship(
-        back_populates="relevant_question"
+        # primaryjoin="Fact.id==Fact.relevant_question_id",
+        foreign_keys="[Fact.relevant_question_id]",
+        back_populates="relevant_question",
     )
 
     # For theories
     evidence: Mapped[List["Fact"]] = relationship(
-        secondary=theory_evidence_association, back_populates="supported_theories"
+        secondary=theory_evidence_association,
+        primaryjoin="Fact.id==theory_evidence_association.c.theory_id",
+        secondaryjoin="Fact.id==theory_evidence_association.c.evidence_id",
+        back_populates="supported_theories",
     )
     relevant_question_id: Mapped[int] = mapped_column(
         ForeignKey("facts.id"), nullable=True
     )
     relevant_question: Mapped["Fact"] = relationship(
-        foreign_keys=[relevant_question_id], back_populates="possible_theories"
+        foreign_keys=[relevant_question_id],
+        back_populates="possible_theories",
+        remote_side="Fact.id",
     )
 
     # For objectives
     parent_objective_id: Mapped[int] = mapped_column(
         ForeignKey("facts.id"), nullable=True
     )
-    parent_objective: Mapped["Fact"] = relationship(back_populates="child_objectives")
+    parent_objective: Mapped["Fact"] = relationship(
+        foreign_keys=[parent_objective_id],
+        back_populates="child_objectives",
+        remote_side="Fact.id",
+    )
     child_objectives: Mapped[List["Fact"]] = relationship(
         foreign_keys=[parent_objective_id], back_populates="parent_objective"
     )
