@@ -15,6 +15,7 @@ async def consolidate_fulminate_no_context():
     with SessionLocal() as session:
         fulminate_messages = load_fulminate()
 
+        num_consolidations = 0
         # await conversation_loop(session=session, previous_messages=fulminate_messages)
         conversation = Conversation()
         for i in range(0, len(fulminate_messages), 2):
@@ -23,7 +24,13 @@ async def consolidate_fulminate_no_context():
             conversation.add_message(message=message_pair[1])
 
             if should_consolidate(conversation):
+                num_consolidations += 1
                 await consolidate(session=session, conversation=conversation)
+
+        # todo work on getting context for messages
+        # todo grade contexitems based on usefulness
+
+        print("done", num_consolidations)
 
 
 if __name__ == "__main__":

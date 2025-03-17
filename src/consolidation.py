@@ -57,7 +57,9 @@ class UpdatedFactModel(FactModel):
 
 
 class MessageSummaryModel(ContextItemModel):
-    body: str
+    body: str = Field(
+        description="Stay concise and focus on events rather than factual statements (handled elsewhere). Write it like how you'd recall a memory, focusing on what stands out or seems important."
+    )
     relevant_entity_names: List[str] = Field(
         description="Names of any entities in or closely related to these events. You must use one of their aliases exactly.",
     )
@@ -102,8 +104,10 @@ def should_consolidate(conversation: Conversation):
 
 
 async def consolidate(session: Session, conversation: Conversation):
-    consolidation_window = get_consolidation_window(conversation)
+    consolidation_window, start_index = get_consolidation_window_and_index(conversation)
     consolidator_context = await get_consolidator_context()
+    for message in consolidation_window:
+        message.hidden = True
 
     recent_messages = []
     for message in consolidation_window:
@@ -132,7 +136,7 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     # update db
 
     for alias_row in result.data.new_entities:
-        new_entity = Entity(aliases=alias_row.aliases, brief=alias_row.brief)
+        new_entity = Entity(brief=alias_row.brief)
         for alias in alias_row.aliases:
             new_entity.aliases.append(EntityAlias(alias=alias))
         session.add(new_entity)
@@ -144,6 +148,7 @@ For simplicity, speak in first person, where your character is "I". Out of chara
             body=fact_data.body,
             importance=fact_data.importance,
             salience=fact_data.salience,
+            created_at_message_index=start_index,
         )
         session.add(new_fact)
 
@@ -162,12 +167,16 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     ]
 
     new_message_summary = MessageSummary(
+        # TODO created at message index
+        importance=result.data.summary.importance,
+        salience=result.data.summary.salience,
         body=result.data.summary.body,
         facts=new_facts,
         entities=entities_in_scene,
         messages=[
             Message(body=msg.content, sender=msg.role) for msg in consolidation_window
         ],
+        created_at_message_index=start_index,
     )
 
     session.add(new_message_summary)
@@ -176,7 +185,11 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     return
 
 
-def get_consolidation_window(conversation: Conversation):
+def get_consolidation_window_and_index(conversation: Conversation):
+    start_index = next(
+        (i for i, msg in enumerate(conversation.messages) if not msg.hidden), None
+    )
+
     # find back half of unhidden messages
     non_hidden_messages = [msg for msg in conversation.messages if not msg.hidden]
 
@@ -188,7 +201,7 @@ def get_consolidation_window(conversation: Conversation):
         total_words_in_window += non_hidden_messages[split_index].num_words
 
     consolidate_window = non_hidden_messages[:split_index]
-    return consolidate_window
+    return consolidate_window, start_index
 
 
 class ConsolidatorContext(BaseModel):
