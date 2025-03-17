@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import (
     create_engine,
@@ -130,6 +130,17 @@ class EntityAlias(Base):
     entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"), nullable=False)
 
     entity: Mapped["Entity"] = relationship(back_populates="aliases")
+
+
+def get_entity_by_name(session, entity_name: str) -> Optional[Entity]:
+    alias_row = (
+        session.query(EntityAlias)
+        .filter(EntityAlias.alias == entity_name)
+        .one_or_none()
+    )
+    if not alias_row:
+        print("WARN: entity alias not found: ", entity_name)
+    return alias_row.entity
 
 
 class FactType(enum.Enum):

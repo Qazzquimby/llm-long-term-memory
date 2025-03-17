@@ -7,18 +7,49 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from sqlalchemy.orm import Session
 
 from src.conversation import Conversation, ChatMessage, Role, MODEL, OPENROUTER_API_KEY
+from src.db import (
+    Entity,
+    EntityAlias,
+    Fact,
+    MessageSummary,
+    Message,
+    get_entity_by_name,
+)
 
 MAX_CHAT_WORDS_BEFORE_CONSOLIDATION = 2500
 NUM_WORDS_TO_CONSOLIDATE = 1250
 
 
+class EntityModel(BaseModel):
+    aliases: List[str]
+    brief: str = Field(
+        description="1-2 sentence summary of the entity and your relationship with it."
+    )
+
+
+class UpdatedEntityModel(EntityModel):
+    index: int
+
+
 class ContextItemModel(BaseModel):
-    importance: conint(ge=1, le=10)
-    salience: conint(ge=1, le=10)
+    importance: conint(ge=1, le=10) = Field(
+        description="Strategic importance. 1 is trivial, 5 is probably important, and 10 is absolutely critical"
+    )
+    salience: conint(ge=1, le=10) = Field(
+        description="Emotional valence. 1 is has no affect on you, 5 has some emotional impact, and 10 is a burned in part of your identity"
+    )
 
 
 class FactModel(ContextItemModel):
-    body: str
+    body: str = Field(
+        "~1 sentence. Facts should be largely timeless, not about events or current status"
+    )
+    relevant_entity_names: List[str] = Field(
+        description="Names of any entities related to this fact. You must use one of their aliases exactly.",
+    )
+
+    def __str__(self):
+        return f"I:{self.importance} S:{self.salience} {self.body}"
 
 
 class UpdatedFactModel(FactModel):
@@ -27,11 +58,20 @@ class UpdatedFactModel(FactModel):
 
 class MessageSummaryModel(ContextItemModel):
     body: str
+    relevant_entity_names: List[str] = Field(
+        description="Names of any entities in or closely related to these events. You must use one of their aliases exactly.",
+    )
 
 
 class ConsolidateResult(BaseModel):
-    summary: str = Field(
+    summary: MessageSummaryModel = Field(
         description="Summary of the new messages, first person, from the perspective of 'Me'. Focus on what you'd want to remember, being concise."
+    )
+    new_entities: List[EntityModel] = Field(
+        description="New entities not already in the context. Entities should be things deserving of a wiki-page in your personal notes, not just any noun."
+    )
+    updated_entities: List[UpdatedEntityModel] = Field(
+        description="For any entities now made out of date, write a new version to replace them."
     )
     new_facts: List[FactModel] = Field(
         description="New things to remember, not already in the context. Individual meaningful statements worth remembering."
@@ -39,9 +79,6 @@ class ConsolidateResult(BaseModel):
     updated_facts: List[UpdatedFactModel] = Field(
         description="For any facts in the context that are now made out of date, write a new version to replace them."
     )
-
-    # new_briefs = ...
-    # updated_briefs = ...
 
     # Get new key info very rarely? Leave out for now
 
@@ -88,10 +125,55 @@ RECENT MESSAGES:
 
 <<Chat Paused for Memory Consolidation>>
 It's time to update and maintain your memory system based off of recent events.
+For simplicity, speak in first person, where your character is "I". Out of character text can be written OOC: ...
 """
-    # later run async
     result = await consolidator_agent.run(prompt)
-    return result  # todo use the result to update db
+
+    # update db
+
+    for alias_row in result.data.new_entities:
+        new_entity = Entity(aliases=alias_row.aliases, brief=alias_row.brief)
+        for alias in alias_row.aliases:
+            new_entity.aliases.append(EntityAlias(alias=alias))
+        session.add(new_entity)
+    session.commit()
+
+    new_facts = []
+    for fact_data in result.data.new_facts:
+        new_fact = Fact(
+            body=fact_data.body,
+            importance=fact_data.importance,
+            salience=fact_data.salience,
+        )
+        session.add(new_fact)
+
+        relevant_entities = [
+            get_entity_by_name(session, entity_name)
+            for entity_name in fact_data.relevant_entity_names
+        ]
+        relevant_entities = [entity for entity in relevant_entities if entity]
+        new_fact.entities = relevant_entities
+
+        new_facts.append(new_fact)
+
+    entities_in_scene = [
+        get_entity_by_name(session, entity_name)
+        for entity_name in result.data.summary.relevant_entity_names
+    ]
+
+    new_message_summary = MessageSummary(
+        body=result.data.summary.body,
+        facts=new_facts,
+        entities=entities_in_scene,
+        messages=[
+            Message(body=msg.content, sender=msg.role) for msg in consolidation_window
+        ],
+    )
+
+    session.add(new_message_summary)
+
+    session.commit()
+    return
 
 
 def get_consolidation_window(conversation: Conversation):
@@ -111,6 +193,7 @@ def get_consolidation_window(conversation: Conversation):
 
 class ConsolidatorContext(BaseModel):
     past_message_summaries: List[MessageSummaryModel]
+    entities: List[EntityModel]
     facts: List[FactModel]
 
     def __str__(self):
@@ -119,6 +202,14 @@ class ConsolidatorContext(BaseModel):
             parts.append("SUMMARIES OF PAST MESSAGES:")
             parts.append(
                 "\n\n".join([str(summary) for summary in self.past_message_summaries])
+            )
+
+        if self.entities:
+            parts.append("ENTITIES:")
+            parts.append(
+                "\n\n".join(
+                    [f"{i}: {entity}" for i, entity in enumerate(self.entities)]
+                )
             )
 
         if self.facts:
@@ -132,5 +223,8 @@ class ConsolidatorContext(BaseModel):
 
 async def get_consolidator_context() -> ConsolidatorContext:
     context_summaries = []  # todo use db
+    entities = []
     facts = []
-    return ConsolidatorContext(past_message_summaries=context_summaries, facts=facts)
+    return ConsolidatorContext(
+        past_message_summaries=context_summaries, entities=entities, facts=facts
+    )
