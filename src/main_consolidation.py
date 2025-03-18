@@ -10,30 +10,38 @@ from src.dev_load_fulminate import load_fulminate
 # Run consolidate
 
 
-async def consolidate_fulminate_no_context():
+async def consolidate_fulminate_no_context(
+    session, messages, should_return_after_num_consolidations=None
+):
+    num_consolidations = 0
+    # await conversation_loop(session=session, previous_messages=fulminate_messages)
+    conversation = Conversation()
+    for i in range(0, len(messages), 2):
+        message_pair = messages[i : i + 2]
+        conversation.add_message(message=message_pair[0])
+        conversation.add_message(message=message_pair[1])
+
+        if should_consolidate(conversation):
+            num_consolidations += 1
+            await consolidate(session=session, conversation=conversation)
+            if (
+                should_return_after_num_consolidations is not None
+                and num_consolidations >= should_return_after_num_consolidations
+            ):
+                return conversation
+    print("done", num_consolidations)
+
+
+async def main():
     SessionLocal = get_db_factory()
     with SessionLocal() as session:
         fulminate_messages = load_fulminate()
-
-        num_consolidations = 0
-        # await conversation_loop(session=session, previous_messages=fulminate_messages)
-        conversation = Conversation()
-        for i in range(0, len(fulminate_messages), 2):
-            message_pair = fulminate_messages[i : i + 2]
-            conversation.add_message(message=message_pair[0])
-            conversation.add_message(message=message_pair[1])
-
-            if should_consolidate(conversation):
-                num_consolidations += 1
-                await consolidate(session=session, conversation=conversation)
-
-        # todo work on getting context for messages
-        # todo grade contexitems based on usefulness
-
-        print("done", num_consolidations)
+        await consolidate_fulminate_no_context(
+            session=session, messages=fulminate_messages
+        )
 
 
 if __name__ == "__main__":
     import asyncio
 
-    asyncio.run(consolidate_fulminate_no_context())
+    asyncio.run(main())

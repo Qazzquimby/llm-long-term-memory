@@ -105,7 +105,7 @@ def should_consolidate(conversation: Conversation):
 
 async def consolidate(session: Session, conversation: Conversation):
     consolidation_window, start_index = get_consolidation_window_and_index(conversation)
-    consolidator_context = await get_consolidator_context()
+    consolidator_context = await get_consolidator_context(consolidation_window)
     for message in consolidation_window:
         message.hidden = True
 
@@ -234,7 +234,10 @@ class ConsolidatorContext(BaseModel):
         return "\n\n".join(parts)
 
 
-async def get_consolidator_context() -> ConsolidatorContext:
+async def get_consolidator_context(
+    consolidation_window: List[ChatMessage],
+) -> ConsolidatorContext:
+
     context_summaries = []  # todo use db
     entities = []
     facts = []

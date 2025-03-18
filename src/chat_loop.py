@@ -25,16 +25,25 @@ async def conversation_loop(session: Session, previous_messages=None):
     for _ in range(MAX_CONVERSATION_LENGTH):
         # user_input = input("You: ")
         user_input = await prompt_session.prompt_async()
-        conversation.add_message(message=ChatMessage(content=user_input))
 
-        context = get_assistant_context(session)
-
-        conversation.add_message(
-            message=ChatMessage(content=context, role=Role.SYSTEM, ephemeral=True),
-            prepend=True,
+        await respond_to_input(
+            session=session, user_input=user_input, conversation=conversation
         )
-        await conversation.run(MODEL)
 
         if should_consolidate(conversation):
             # todo dont await, let it run in parallel
             await consolidate(session=session, conversation=conversation)
+
+
+async def respond_to_input(
+    session: Session, user_input: str, conversation: Conversation
+):
+    conversation.add_message(message=ChatMessage(content=user_input))
+
+    context = get_assistant_context(session)
+
+    conversation.add_message(
+        message=ChatMessage(content=context, role=Role.SYSTEM, ephemeral=True),
+        prepend=True,
+    )
+    await conversation.run(MODEL)
