@@ -1,7 +1,5 @@
-from src.chat_loop import conversation_loop
-from src.consolidation import should_consolidate, consolidate
 from src.context import get_assistant_context
-from src.conversation import Conversation, Role, ChatMessage
+from src.conversation import Role, ChatMessage
 
 from src.db import get_db_factory
 from src.dev_load_fulminate import load_fulminate
