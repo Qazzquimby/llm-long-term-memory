@@ -13,7 +13,7 @@ from db import (
     ContextItem,
     record_context_item_usage,
 )
-from src.conversation import ChatMessage, Role, MODEL, OPENROUTER_API_KEY
+from src.conversation import ChatMessage, Role, MODEL, OPENROUTER_API_KEY, Conversation
 
 
 class ContextItemEvaluation(BaseModel):
@@ -106,18 +106,11 @@ def get_assistant_context(session: Session) -> AssistantContext:
 async def evaluate_context(
     session: Session,
     context: AssistantContext,
-    message: ChatMessage,
-    message_index: int,
+    conversation: Conversation,
 ):
-    """
-    Evaluate how useful each context item was for the assistant's response
 
-    Args:
-        session: Database session
-        context: The context that was provided to the assistant
-        message: The assistant's response message
-        message_index: The current message index
-    """
+    new_message = conversation.messages[-1]
+
     # Skip evaluation if there are no context items
     if not (context.facts or context.entities or context.message_summaries):
         return
@@ -139,26 +132,24 @@ async def evaluate_context(
     context_str = str(context)
 
     # Format the message for the evaluator
-    message_str = f"Assistant's response: {message.content}"
+    message_str = f"Your response: {new_message.content}"
 
     # Create the prompt for the evaluator
-    prompt = f"""
-You are evaluating how useful each piece of context was for generating the assistant's response.
-Rate each context item on a scale of 0-2:
-0 = Not useful or relevant to the response
-1 = Somewhat useful or relevant
-2 = Very useful and clearly influenced the response
-
-CONTEXT PROVIDED TO ASSISTANT:
-{context_str}
-
-{message_str}
-
-Evaluate each context item's usefulness in generating this response.
+    prompt = f"""\
+You are maintaining your memory system, trying to prevent it from building up with irrelevant context and finetune it over time.
+You were just given context to continue a conversation, and now you're evaluating how useful each piece of context was for generating your answer.
+Please rate each context item on a scale of 0-2:
+0 = Not useful or relevant to the response. Just noise.
+1 = Somewhat useful or relevant. 
+2 = Clearly useful and influenced the response.
 """
+
+# todo improve prompt
 
     # Run the evaluator agent
     result = await context_evaluator_agent.run(prompt)
+
+    message_index = len(conversation.messages)
 
     # Record usage for each evaluated item
     for evaluation in result.data.evaluations:

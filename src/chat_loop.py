@@ -52,6 +52,5 @@ async def respond_to_input(
     await evaluate_context(
         session=session,
         context=context,
-        message=conversation.messages[-1],
-        message_index=len(conversation.messages) - 1,
+        conversation=conversation,
     )

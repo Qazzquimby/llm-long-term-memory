@@ -26,7 +26,9 @@ async def get_context_after_consolidation(session, messages):
             last_context = get_assistant_context(session)
 
         elif message.role == Role.ASSISTANT:
-            await evaluate_context(context=last_context, message=message)
+            await evaluate_context(
+                session=session, context=last_context, conversation=conversation
+            )
 
     print("ok")
 
