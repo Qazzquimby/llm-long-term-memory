@@ -16,7 +16,7 @@ async def get_context_after_consolidation(session, messages):
     # conversation = await consolidate_fulminate_no_context(
     #     session, messages, should_return_after_num_consolidations=1
     # )
-    # temp to avoid recomputing consolidation
+    # # temp to avoid recomputing consolidation
     conversation = Conversation(messages=messages[:20])
 
     # everything not handled as of the last consolidation, including recent messages present at consolidation time but not in the consolidation window.

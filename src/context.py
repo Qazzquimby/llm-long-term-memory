@@ -17,6 +17,18 @@ class AssistantContext:
 
         return
 
+    # alright so to rank facts we have
+    # age, age since updated
+    # importance
+    # salience
+    # keyword matching to recent context, especially last couple messages
+    # embedding relevance to the same
+    # times provided
+    # times useful
+    # context relevant to other relevant context for explainability
+    # Later look at relationships between items
+    # ?prefer items that were in previous contexts? May be redundant given the above
+
     def __str__(self):
         context_parts = []
 

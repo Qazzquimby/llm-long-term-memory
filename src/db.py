@@ -79,6 +79,9 @@ class ContextItem(Base):
     #     ForeignKey("context_items.id"), nullable=True
     # )
 
+    def __str__(self):
+        return f"Context Item {self.id} (importance: {self.importance}, salience: {self.salience})"
+
 
 class Message(Base):
     __tablename__ = "messages"
@@ -91,6 +94,10 @@ class Message(Base):
     )
 
     summary: Mapped["MessageSummary"] = relationship(back_populates="messages")
+
+    def __str__(self):
+        preview = self.body[:30] + "..." if len(self.body) > 30 else self.body
+        return f"Message from {self.sender.name}: '{preview}'"
 
 
 # todo may need an 'in world time' for fiction?
@@ -109,6 +116,10 @@ class MessageSummary(ContextItem):
     )
     messages: Mapped[List["Message"]] = relationship(back_populates="summary")
 
+    def __str__(self):
+        preview = self.body[:30] + "..." if len(self.body) > 30 else self.body
+        return f"Summary: {preview}"
+
 
 class Entity(Base):
     __tablename__ = "entities"
@@ -124,6 +135,12 @@ class Entity(Base):
         secondary=message_summary_entity_association, back_populates="entities"
     )
 
+    def __str__(self):
+        if self.aliases:
+            return self.aliases[0].alias
+        else:
+            return self.brief
+
 
 class EntityAlias(Base):
     __tablename__ = "entity_aliases"
@@ -133,6 +150,9 @@ class EntityAlias(Base):
     entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"), nullable=False)
 
     entity: Mapped["Entity"] = relationship(back_populates="aliases")
+
+    def __str__(self):
+        return self.alias
 
 
 def get_entity_by_name(session, entity_name: str) -> Optional[Entity]:
@@ -169,6 +189,13 @@ class Fact(ContextItem):
     message_summaries: Mapped[List["MessageSummary"]] = relationship(
         secondary=message_summary_fact_association, back_populates="facts"
     )
+
+    def __str__(self):
+        preview = self.body[:30] + "..." if len(self.body) > 30 else self.body
+        if self.fact_type.name != "BASE":
+            return f"{self.fact_type.name}: {preview}"
+        else:
+            return preview
 
     # supported_theories: Mapped[List["Fact"]] = relationship(
     #     secondary=theory_evidence_association,
