@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 
 from db import (
-    ContextItem,
     MessageSummary,
     Entity,
     Fact,
@@ -14,7 +13,7 @@ class AssistantContext:
 
         self.entities = session.query(Entity).all()
 
-        self.facts = session.query(Fact).join(ContextItem).all()
+        self.facts = session.query(Fact).all()
 
         return
 
