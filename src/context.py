@@ -5,7 +5,6 @@ from db import (
     MessageSummary,
     Entity,
     Fact,
-    FactType,
 )
 
 
@@ -15,12 +14,7 @@ class AssistantContext:
 
         self.entities = session.query(Entity).all()
 
-        self.facts = (
-            session.query(Fact)
-            .join(ContextItem)
-            .filter(Fact.fact_type == FactType.BASE, ContextItem.retired_by == None)
-            .all()
-        )
+        self.facts = session.query(Fact).join(ContextItem).all()
 
         return
 
