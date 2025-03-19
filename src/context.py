@@ -4,6 +4,7 @@ from db import (
     MessageSummary,
     Entity,
     Fact,
+    UsageRecord,
 )
 
 

@@ -9,6 +9,7 @@ from sqlalchemy import (
     Text,
     Enum,
     CheckConstraint,
+    Integer,
 )
 from sqlalchemy.orm import (
     declarative_base,
@@ -52,6 +53,24 @@ theory_evidence_association = Table(
 )
 
 
+class UsageRecord(Base):
+    __tablename__ = "usage_records"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    context_item_id: Mapped[int] = mapped_column(ForeignKey("context_items.id"))
+    created_at_message_index: Mapped[int] = mapped_column()
+    usefulness: Mapped[int] = mapped_column(Integer)
+
+    context_item: Mapped["ContextItem"] = relationship(
+        "ContextItem", back_populates="usage_records"
+    )
+
+    __table_args__ = (CheckConstraint("usefulness >= 0 AND usefulness <= 2"),)
+
+    def __str__(self):
+        return f"Usage at message {self.created_at_message_index} (usefulness: {self.usefulness})"
+
+
 class ContextItem(Base):
     __tablename__ = "context_items"
     __mapper_args__ = {
@@ -66,8 +85,10 @@ class ContextItem(Base):
     salience: Mapped[int] = mapped_column()
     created_at_message_index: Mapped[int] = mapped_column()
     updated_at_message_index: Mapped[int] = mapped_column(nullable=True)
-    times_provided: Mapped[int] = mapped_column(default=0)
-    times_useful: Mapped[int] = mapped_column(default=0)
+
+    usage_records: Mapped[List["UsageRecord"]] = relationship(
+        back_populates="context_item", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -75,12 +96,24 @@ class ContextItem(Base):
         ),
     )
 
-    # retired_by: Mapped[int] = mapped_column(
-    #     ForeignKey("context_items.id"), nullable=True
-    # )
+    retired_by: Mapped[int] = mapped_column(
+        ForeignKey("context_items.id"), nullable=True
+    )
 
     def __str__(self):
         return f"Context Item {self.id} (importance: {self.importance}, salience: {self.salience})"
+
+    @property
+    def times_provided(self):
+        """Backward compatibility property that counts all usage records"""
+        return len(self.usage_records) if self.usage_records else 0
+
+    @property
+    def times_useful(self):
+        """Backward compatibility property that counts usage records with usefulness > 0"""
+        if not self.usage_records:
+            return 0
+        return sum(1 for record in self.usage_records if record.usefulness > 0)
 
 
 class Message(Base):
@@ -254,6 +287,29 @@ def get_sessionmaker(engine=None):
 # SessionLocal = get_sessionmaker()
 # with SessionLocal() as session:
 #     ...
+def record_context_item_usage(session, context_item, message_index, usefulness=0):
+    """
+    Record usage of a context item
+
+    Args:
+        session: SQLAlchemy session
+        context_item: The ContextItem that was used
+        message_index: The message index when this item was used
+        usefulness: How useful the item was (0-2)
+            0 = provided but not useful
+            1 = somewhat useful
+            2 = very useful
+    """
+    usage_record = UsageRecord(
+        context_item_id=context_item.id,
+        created_at_message_index=message_index,
+        usefulness=usefulness,
+    )
+    session.add(usage_record)
+    session.commit()
+    return usage_record
+
+
 def get_db_factory():
     engine = get_engine()
     # Base.metadata.drop_all(engine)
