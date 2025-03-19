@@ -108,7 +108,7 @@ async def consolidate(session: Session, conversation: Conversation):
     consolidator_context = await get_consolidator_context(consolidation_window)
     for message in consolidation_window:
         message.hidden = True
-
+    # todo get consolidator context from context.py
     recent_messages = []
     for message in consolidation_window:
         if message.role == Role.ASSISTANT:

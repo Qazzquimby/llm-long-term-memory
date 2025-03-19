@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from .db import (
+from db import (
     ContextItem,
     MessageSummary,
     Entity,
@@ -21,6 +21,8 @@ class AssistantContext:
             .filter(Fact.fact_type == FactType.BASE, ContextItem.retired_by == None)
             .all()
         )
+
+        return
 
     def __str__(self):
         context_parts = []
