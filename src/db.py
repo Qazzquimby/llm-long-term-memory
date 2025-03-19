@@ -17,7 +17,6 @@ from sqlalchemy.orm import (
     mapped_column,
     Mapped,
 )
-from datetime import datetime
 import enum
 
 from src.conversation import Role
@@ -55,8 +54,11 @@ theory_evidence_association = Table(
 
 class ContextItem(Base):
     __tablename__ = "context_items"
-    __mapper_args__ = {"polymorphic_on": "type", "polymorphic_identity": "context_item"}
-    type: Mapped[str] = mapped_column(String(50))
+    __mapper_args__ = {
+        "polymorphic_on": "item_type",
+        "polymorphic_identity": "context_item",
+    }
+    item_type: Mapped[str] = mapped_column(String(50))
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
@@ -73,9 +75,9 @@ class ContextItem(Base):
         ),
     )
 
-    retired_by: Mapped[int] = mapped_column(
-        ForeignKey("context_items.id"), nullable=True
-    )
+    # retired_by: Mapped[int] = mapped_column(
+    #     ForeignKey("context_items.id"), nullable=True
+    # )
 
 
 class Message(Base):
@@ -141,6 +143,7 @@ def get_entity_by_name(session, entity_name: str) -> Optional[Entity]:
     )
     if not alias_row:
         print("WARN: entity alias not found: ", entity_name)
+        return None
     return alias_row.entity
 
 
@@ -166,48 +169,49 @@ class Fact(ContextItem):
     message_summaries: Mapped[List["MessageSummary"]] = relationship(
         secondary=message_summary_fact_association, back_populates="facts"
     )
-    supported_theories: Mapped[List["Fact"]] = relationship(
-        secondary=theory_evidence_association,
-        primaryjoin="Fact.id==theory_evidence_association.c.evidence_id",
-        secondaryjoin="Fact.id==theory_evidence_association.c.theory_id",
-        back_populates="evidence",
-    )
 
-    # For questions
-    possible_theories: Mapped[List["Fact"]] = relationship(
-        # primaryjoin="Fact.id==Fact.relevant_question_id",
-        foreign_keys="[Fact.relevant_question_id]",
-        back_populates="relevant_question",
-    )
-
-    # For theories
-    evidence: Mapped[List["Fact"]] = relationship(
-        secondary=theory_evidence_association,
-        primaryjoin="Fact.id==theory_evidence_association.c.theory_id",
-        secondaryjoin="Fact.id==theory_evidence_association.c.evidence_id",
-        back_populates="supported_theories",
-    )
-    relevant_question_id: Mapped[int] = mapped_column(
-        ForeignKey("facts.id"), nullable=True
-    )
-    relevant_question: Mapped["Fact"] = relationship(
-        foreign_keys=[relevant_question_id],
-        back_populates="possible_theories",
-        remote_side="Fact.id",
-    )
-
-    # For objectives
-    parent_objective_id: Mapped[int] = mapped_column(
-        ForeignKey("facts.id"), nullable=True
-    )
-    parent_objective: Mapped["Fact"] = relationship(
-        foreign_keys=[parent_objective_id],
-        back_populates="child_objectives",
-        remote_side="Fact.id",
-    )
-    child_objectives: Mapped[List["Fact"]] = relationship(
-        foreign_keys=[parent_objective_id], back_populates="parent_objective"
-    )
+    # supported_theories: Mapped[List["Fact"]] = relationship(
+    #     secondary=theory_evidence_association,
+    #     primaryjoin="Fact.id==theory_evidence_association.c.evidence_id",
+    #     secondaryjoin="Fact.id==theory_evidence_association.c.theory_id",
+    #     back_populates="evidence",
+    # )
+    #
+    # # For questions
+    # possible_theories: Mapped[List["Fact"]] = relationship(
+    #     # primaryjoin="Fact.id==Fact.relevant_question_id",
+    #     foreign_keys="[Fact.relevant_question_id]",
+    #     back_populates="relevant_question",
+    # )
+    #
+    # # For theories
+    # evidence: Mapped[List["Fact"]] = relationship(
+    #     secondary=theory_evidence_association,
+    #     primaryjoin="Fact.id==theory_evidence_association.c.theory_id",
+    #     secondaryjoin="Fact.id==theory_evidence_association.c.evidence_id",
+    #     back_populates="supported_theories",
+    # )
+    # relevant_question_id: Mapped[int] = mapped_column(
+    #     ForeignKey("facts.id"), nullable=True
+    # )
+    # relevant_question: Mapped["Fact"] = relationship(
+    #     foreign_keys=[relevant_question_id],
+    #     back_populates="possible_theories",
+    #     remote_side="Fact.id",
+    # )
+    #
+    # # For objectives
+    # parent_objective_id: Mapped[int] = mapped_column(
+    #     ForeignKey("facts.id"), nullable=True
+    # )
+    # parent_objective: Mapped["Fact"] = relationship(
+    #     foreign_keys=[parent_objective_id],
+    #     back_populates="child_objectives",
+    #     remote_side="Fact.id",
+    # )
+    # child_objectives: Mapped[List["Fact"]] = relationship(
+    #     foreign_keys=[parent_objective_id], back_populates="parent_objective"
+    # )
 
 
 def get_engine(db_url="sqlite:///memory.db"):
