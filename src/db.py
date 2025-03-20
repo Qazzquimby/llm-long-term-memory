@@ -287,27 +287,6 @@ def get_sessionmaker(engine=None):
 # SessionLocal = get_sessionmaker()
 # with SessionLocal() as session:
 #     ...
-def record_context_item_usage(session, context_item, message_index, usefulness=0):
-    """
-    Record usage of a context item
-
-    Args:
-        session: SQLAlchemy session
-        context_item: The ContextItem that was used
-        message_index: The message index when this item was used
-        usefulness: How useful the item was (0-2)
-            0 = provided but not useful
-            1 = somewhat useful
-            2 = very useful
-    """
-    usage_record = UsageRecord(
-        context_item_id=context_item.id,
-        created_at_message_index=message_index,
-        usefulness=usefulness,
-    )
-    session.add(usage_record)
-    session.commit()
-    return usage_record
 
 
 def get_db_factory():

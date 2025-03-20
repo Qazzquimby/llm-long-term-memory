@@ -1,4 +1,4 @@
-from typing import List, Dict, Union
+from typing import List
 
 from pydantic import BaseModel, Field, conint
 from pydantic_ai import Agent
@@ -10,44 +10,9 @@ from db import (
     MessageSummary,
     Entity,
     Fact,
-    ContextItem,
-    record_context_item_usage,
+    UsageRecord,
 )
-from src.conversation import ChatMessage, Role, MODEL, OPENROUTER_API_KEY, Conversation
-
-
-class ContextItemEvaluation(BaseModel):
-    """Evaluation of a single context item's usefulness"""
-
-    id: int = Field(description="The ID of the context item being evaluated")
-    usefulness: conint(ge=0, le=2) = Field(
-        description="""\
-How useful this item was in generating the new message:
-0 = Not useful or relevant to the response. Just noise.
-1 = Somewhat useful or relevant. 
-2 = Clearly useful and influenced the response.
-"""
-    )
-
-
-class ContextEvaluationResult(BaseModel):
-    """Results of evaluating all context items"""
-
-    evaluations: List[ContextItemEvaluation] = Field(
-        description="Evaluations for each context item that was provided"
-    )
-
-
-context_evaluator_agent = Agent(
-    model=OpenAIModel(
-        MODEL.replace("openrouter/", ""),
-        provider=OpenAIProvider(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=OPENROUTER_API_KEY,
-        ),
-    ),
-    result_type=ContextEvaluationResult,
-)
+from src.conversation import Role, MODEL, OPENROUTER_API_KEY, Conversation
 
 
 class AssistantContext:
@@ -108,6 +73,39 @@ def get_assistant_context(session: Session) -> AssistantContext:
     return context
 
 
+## Evaluation
+
+
+class ContextItemEvaluation(BaseModel):
+    id: int = Field(description="The ID of the context item being evaluated")
+    usefulness: conint(ge=0, le=2) = Field(
+        description="""\
+How useful this item was in generating the new message:
+0 = Not useful or relevant to the response. Just noise.
+1 = Somewhat useful or relevant. 
+2 = Clearly useful and influenced the response.
+"""
+    )
+
+
+class ContextEvaluationResult(BaseModel):
+    evaluations: List[ContextItemEvaluation] = Field(
+        description="Evaluations for each context item that was provided"
+    )
+
+
+context_evaluator_agent = Agent(
+    model=OpenAIModel(
+        MODEL.replace("openrouter/", ""),
+        provider=OpenAIProvider(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=OPENROUTER_API_KEY,
+        ),
+    ),
+    result_type=ContextEvaluationResult,
+)
+
+
 async def evaluate_context(
     session: Session,
     context: AssistantContext,
@@ -119,20 +117,13 @@ async def evaluate_context(
     if not (context.facts or context.entities or context.message_summaries):
         return
 
-    # Create a mapping of context items by ID for easy lookup
     context_items_by_id = {}
-
-    # Add all context items to the mapping
     for item in context.facts:
         context_items_by_id[item.id] = item
-
     for item in context.message_summaries:
         context_items_by_id[item.id] = item
 
-    # Format the context items with their IDs for the evaluator
     context_parts = []
-
-    # 1. Entity briefs
     if context.entities:
         context_parts.append(
             "## Key Entities (You don't grade these, they're just for your information):"
@@ -188,15 +179,18 @@ Please evaluate how useful each piece of context was for generating your respons
 
     message_index = len(conversation.messages)
 
-    # Record usage for each evaluated item
     for evaluation in result.data.evaluations:
         item_id = evaluation.id
 
-        if isinstance(item_id, int) and item_id in context_items_by_id:
+        if item_id in context_items_by_id:
             context_item = context_items_by_id[item_id]
-            record_context_item_usage(
-                session=session,
-                context_item=context_item,
-                message_index=message_index,
+            usage_record = UsageRecord(
+                context_item_id=context_item.id,
+                created_at_message_index=message_index,
                 usefulness=evaluation.usefulness,
             )
+            session.add(usage_record)
+    session.commit()
+
+
+# todo string representation of contextitemevaluation that shows what the id represents
