@@ -45,6 +45,11 @@ class AnchorheadGame:
 
         actions = ActionChains(self.driver)
         actions.send_keys(command).perform()
+
+        time.sleep(0.2)
+        # check if screen has updated with command
+        # or if text has significantly changed
+
         actions.send_keys(Keys.ENTER).perform()
 
         time.sleep(0.5)
@@ -63,17 +68,26 @@ class AnchorheadGame:
         grid_soup = BeautifulSoup(grid.get_attribute("innerHTML"), "html.parser")
         buffer_soup = BeautifulSoup(buffer.get_attribute("innerHTML"), "html.parser")
 
-        grid_text = grid_soup.get_text(separator="\n", strip=False)
-        buffer_text = buffer_soup.get_text(separator="\n", strip=False)
+        grid_html_lines = grid_soup.find_all("div", class_="GridLine")
+        grid_lines = [clean(line.get_text()) for line in grid_html_lines]
+        grid_text = "\n".join(grid_lines)
+
+        buffer_html_lines = buffer_soup.find_all("div", class_="BufferLine")
+        buffer_lines = [clean(line.get_text()) for line in buffer_html_lines]
+        buffer_text = "\n".join(buffer_lines)
 
         game_text = grid_text + "\n\n" + buffer_text
 
-        return game_text
+        return game_text  # todo only get new text
 
     def close(self):
         if self.driver:
             self.driver.quit()
             self.driver = None
+
+
+def clean(text):
+    return text.replace("\xa0", "")
 
 
 def play_interactive():
