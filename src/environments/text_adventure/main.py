@@ -9,6 +9,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
+import difflib
 
 
 class AnchorheadGame:
@@ -17,6 +18,7 @@ class AnchorheadGame:
         self.driver = None
         self.game_path = Path("anchor.z8.html")
         self.game_url = f"file://{os.path.abspath(self.game_path)}"
+        self.last_screen_state = ""
 
     def start(self) -> str:
         options = Options()
@@ -32,29 +34,68 @@ class AnchorheadGame:
 
         time.sleep(1)
 
-        return self.get_game_text()
+        self.last_screen_state = self.get_game_text()
+        return self.last_screen_state
 
     def send_command(self, command) -> str:
         if not self.driver:
             raise RuntimeError("Game not started. Call start() first.")
 
-        # input_element = self.driver.find_element(By.ID, "gameport")
-
-        # input_element.send_keys(command)
-        # input_element.send_keys(Keys.RETURN)
-
         actions = ActionChains(self.driver)
+
+        # Special case for single key commands like arrow keys
+        if command in ["up", "down", "left", "right"]:
+            key_map = {
+                "up": Keys.ARROW_UP,
+                "down": Keys.ARROW_DOWN,
+                "left": Keys.ARROW_LEFT,
+                "right": Keys.ARROW_RIGHT,
+            }
+            actions.send_keys(key_map[command]).perform()
+            time.sleep(0.5)
+            current_state = self.get_game_text()
+            self.last_screen_state = current_state
+            return current_state
+
+        # For normal text commands
         actions.send_keys(command).perform()
-
         time.sleep(0.2)
-        # check if screen has updated with command
-        # or if text has significantly changed
 
+        state_after_typing = self.get_game_text()
+
+        # Check if the screen has already changed significantly
+        # This could indicate a "press any key" situation
+        if self._did_unexpected_screen_change(
+            self.last_screen_state, state_after_typing, command
+        ):
+            self.last_screen_state = state_after_typing
+            return state_after_typing
+
+        # Otherwise, press Enter to submit the command
         actions.send_keys(Keys.ENTER).perform()
-
         time.sleep(0.5)
 
-        return self.get_game_text()
+        current_state = self.get_game_text()
+        self.last_screen_state = current_state
+        return current_state
+
+    def _did_unexpected_screen_change(self, old_state, new_state, command: str):
+        # Return if the screen changed other than the command being added to the end
+        # Otherwise, return True to indicate significant change
+
+        # Simple case: if lengths are very different, screen has changed
+        if abs(len(new_state) - len(old_state)) > len(command) + 5:
+            return True
+
+        # Check if the new state just has the command appended
+        if new_state.endswith(command) and old_state in new_state:
+            return False
+
+        # Use difflib to calculate similarity
+        similarity = difflib.SequenceMatcher(None, old_state, new_state).ratio()
+
+        # If similarity is low, screen has changed significantly
+        return similarity < 0.9
 
     def get_game_text(self) -> str:
         if not self.driver:
