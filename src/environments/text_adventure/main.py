@@ -1,5 +1,5 @@
 import os
-import time
+import asyncio
 from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver import ActionChains
@@ -20,7 +20,7 @@ class AnchorheadGame:
         self.game_url = f"file://{os.path.abspath(self.game_path)}"
         self.last_screen_state = ""
 
-    def start(self) -> str:
+    async def start(self) -> str:
         options = Options()
         if self.headless:
             options.add_argument("--headless")
@@ -32,12 +32,12 @@ class AnchorheadGame:
             EC.presence_of_element_located((By.ID, "gameport"))
         )
 
-        time.sleep(1)
+        await asyncio.sleep(1)
 
-        self.last_screen_state = self.get_game_text()
+        self.last_screen_state = await self.get_game_text()
         return self.last_screen_state
 
-    def send_command(self, command) -> str:
+    async def send_command(self, command) -> str:
         if not self.driver:
             raise RuntimeError("Game not started. Call start() first.")
 
@@ -51,23 +51,30 @@ class AnchorheadGame:
                 "right": Keys.ARROW_RIGHT,
             }
             actions.send_keys(key_map[command]).perform()
-            self.last_screen_state = self.get_game_text()
-            return self.last_screen_state
+            new_state = await self.get_game_text()
+            new_content = self._extract_new_content(self.last_screen_state, new_state)
+            self.last_screen_state = new_state
+            return new_content
 
         actions.send_keys(command).perform()
-        state_after_typing = self.get_game_text()
+        await asyncio.sleep(0.2)
+        state_after_typing = await self.get_game_text()
 
         if self._did_unexpected_screen_change(
             self.last_screen_state, state_after_typing, command
         ):
+            new_content = self._extract_new_content(
+                self.last_screen_state, state_after_typing
+            )
             self.last_screen_state = state_after_typing
-            return state_after_typing
+            return new_content
 
         actions.send_keys(Keys.ENTER).perform()
-        self.last_screen_state = self.get_game_text()
-
-        # TODO only get new text rather than repeating the whole screen
-        return self.last_screen_state
+        await asyncio.sleep(0.5)
+        new_state = await self.get_game_text()
+        new_content = self._extract_new_content(self.last_screen_state, new_state)
+        self.last_screen_state = new_state
+        return new_content
 
     def _did_unexpected_screen_change(self, old_state, new_state, command: str):
         if old_state == new_state:
@@ -81,10 +88,26 @@ class AnchorheadGame:
         similarity = difflib.SequenceMatcher(None, old_state, new_state).ratio()
         return similarity < 0.9
 
-    def get_game_text(self) -> str:
+    def _extract_new_content(self, old_state, new_state):
+        if old_state == new_state:
+            return ""
+
+        if old_state in new_state:
+            idx = new_state.find(old_state) + len(old_state)
+            return new_state[idx:].strip()
+
+        old_lines = old_state.split("\n")
+        new_lines = new_state.split("\n")
+
+        i = 0
+        while i < min(len(old_lines), len(new_lines)) and old_lines[i] == new_lines[i]:
+            i += 1
+        return '\n'.join(new_lines[i:]).strip()
+
+    async def get_game_text(self) -> str:
         if not self.driver:
             raise RuntimeError("Game not started. Call start() first.")
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
 
         grid = self.driver.find_element(By.CLASS_NAME, "GridWindow")
         buffer = self.driver.find_element(By.CLASS_NAME, "BufferWindow")
@@ -112,11 +135,11 @@ def clean(text):
     return text.replace("\xa0", "")
 
 
-def play_interactive():
+async def play_interactive():
     game = AnchorheadGame(headless=False)
 
     try:
-        initial_text = game.start()
+        initial_text = await game.start()
         print("Game started!")
         print("-" * 50)
         print(initial_text)
@@ -126,7 +149,7 @@ def play_interactive():
             if command.lower() in ["quit", "exit"]:
                 break
 
-            response = game.send_command(command)
+            response = await game.send_command(command)
             print(response)
 
     except KeyboardInterrupt:
@@ -135,11 +158,11 @@ def play_interactive():
         game.close()
 
 
-def example_usage():
+async def example_usage():
     game = AnchorheadGame(headless=True)
 
     try:
-        initial_text = game.start()
+        initial_text = await game.start()
         print("Game started with text:")
         print(initial_text[:400] + "...")
 
@@ -147,7 +170,7 @@ def example_usage():
 
         for command in commands:
             print(f"\nSending command: {command}")
-            response = game.send_command(command)
+            response = await game.send_command(command)
             print(f"Response: {response[:200]}...")
 
     finally:
@@ -155,4 +178,4 @@ def example_usage():
 
 
 if __name__ == "__main__":
-    play_interactive()
+    asyncio.run(play_interactive())
