@@ -177,6 +177,12 @@ Please evaluate how useful each piece of context was for generating your respons
     # Run the evaluator agent
     result = await context_evaluator_agent.run(prompt)
 
+    debug = True
+    if debug:
+        for evaluation in result.data.evaluations:
+            item = context_items_by_id[evaluation.id]
+            print(f"{evaluation.usefulness}: {item}")
+
     message_index = len(conversation.messages)
 
     for evaluation in result.data.evaluations:
