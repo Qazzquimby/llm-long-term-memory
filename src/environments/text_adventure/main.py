@@ -1,6 +1,8 @@
 import os
 import asyncio
 from pathlib import Path
+from dataclasses import dataclass
+from typing import List
 from selenium import webdriver
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
@@ -12,13 +14,60 @@ from bs4 import BeautifulSoup
 import difflib
 
 
+@dataclass
+class ScreenState:
+    grid_lines: List[str]
+    buffer_lines: List[str]
+    
+    def __str__(self):
+        grid_text = "\n".join(self.grid_lines)
+        buffer_text = "\n".join(self.buffer_lines)
+        return grid_text + "\n\n" + buffer_text
+    
+    def is_similar_to(self, other):
+        if not isinstance(other, ScreenState):
+            return False
+        
+        grid_similarity = difflib.SequenceMatcher(
+            None, "\n".join(self.grid_lines), "\n".join(other.grid_lines)
+        ).ratio()
+        
+        buffer_similarity = difflib.SequenceMatcher(
+            None, "\n".join(self.buffer_lines), "\n".join(other.buffer_lines)
+        ).ratio()
+        
+        return grid_similarity > 0.9 and buffer_similarity > 0.9
+    
+    def extract_new_content(self, other):
+        if not isinstance(other, ScreenState):
+            return ""
+        
+        new_grid = self._extract_new_lines(self.grid_lines, other.grid_lines)
+        new_buffer = self._extract_new_lines(self.buffer_lines, other.buffer_lines)
+        
+        result = []
+        if new_grid:
+            result.append("\n".join(new_grid))
+        if new_buffer:
+            result.append("\n".join(new_buffer))
+            
+        return "\n\n".join(result)
+    
+    @staticmethod
+    def _extract_new_lines(old_lines, new_lines):
+        i = 0
+        while i < min(len(old_lines), len(new_lines)) and old_lines[i] == new_lines[i]:
+            i += 1
+        return new_lines[i:]
+
+
 class AnchorheadGame:
     def __init__(self, headless=True):
         self.headless = headless
         self.driver = None
         self.game_path = Path("anchor.z8.html")
         self.game_url = f"file://{os.path.abspath(self.game_path)}"
-        self.last_screen_state = ""
+        self.last_screen_state = None
 
     async def start(self) -> str:
         options = Options()
@@ -34,8 +83,8 @@ class AnchorheadGame:
 
         await asyncio.sleep(1)
 
-        self.last_screen_state = await self.get_game_text()
-        return self.last_screen_state
+        self.last_screen_state = await self.get_screen_state()
+        return str(self.last_screen_state)
 
     async def send_command(self, command) -> str:
         if not self.driver:
@@ -51,60 +100,43 @@ class AnchorheadGame:
                 "right": Keys.ARROW_RIGHT,
             }
             actions.send_keys(key_map[command]).perform()
-            new_state = await self.get_game_text()
-            new_content = self._extract_new_content(self.last_screen_state, new_state)
+            await asyncio.sleep(0.5)
+            new_state = await self.get_screen_state()
+            new_content = new_state.extract_new_content(self.last_screen_state)
             self.last_screen_state = new_state
             return new_content
 
         actions.send_keys(command).perform()
         await asyncio.sleep(0.2)
-        state_after_typing = await self.get_game_text()
+        state_after_typing = await self.get_screen_state()
 
-        if self._did_unexpected_screen_change(
-            self.last_screen_state, state_after_typing, command
-        ):
-            new_content = self._extract_new_content(
-                self.last_screen_state, state_after_typing
-            )
+        if self._did_unexpected_screen_change(state_after_typing, command):
+            new_content = state_after_typing.extract_new_content(self.last_screen_state)
             self.last_screen_state = state_after_typing
             return new_content
 
         actions.send_keys(Keys.ENTER).perform()
         await asyncio.sleep(0.5)
-        new_state = await self.get_game_text()
-        new_content = self._extract_new_content(self.last_screen_state, new_state)
+        new_state = await self.get_screen_state()
+        new_content = new_state.extract_new_content(self.last_screen_state)
         self.last_screen_state = new_state
         return new_content
 
-    def _did_unexpected_screen_change(self, old_state, new_state, command: str):
-        if old_state == new_state:
+    def _did_unexpected_screen_change(self, new_state, command: str):
+        if self.last_screen_state is None:
             return False
-        if new_state.endswith(command) and old_state in new_state:
-            return False
-
-        if abs(len(new_state) - len(old_state)) > len(command) + 5:
+            
+        if not new_state.is_similar_to(self.last_screen_state):
             return True
+            
+        # Check if command is visible at the end of any grid line
+        for line in new_state.grid_lines:
+            if line.endswith(command):
+                return False
+                
+        return True
 
-        similarity = difflib.SequenceMatcher(None, old_state, new_state).ratio()
-        return similarity < 0.9
-
-    def _extract_new_content(self, old_state, new_state):
-        if old_state == new_state:
-            return ""
-
-        if old_state in new_state:
-            idx = new_state.find(old_state) + len(old_state)
-            return new_state[idx:].strip()
-
-        old_lines = old_state.split("\n")
-        new_lines = new_state.split("\n")
-
-        i = 0
-        while i < min(len(old_lines), len(new_lines)) and old_lines[i] == new_lines[i]:
-            i += 1
-        return "\n".join(new_lines[i:]).strip()
-
-    async def get_game_text(self) -> str:
+    async def get_screen_state(self) -> ScreenState:
         if not self.driver:
             raise RuntimeError("Game not started. Call start() first.")
         await asyncio.sleep(0.5)
@@ -117,13 +149,11 @@ class AnchorheadGame:
 
         grid_html_lines = grid_soup.find_all("div", class_="GridLine")
         grid_lines = [clean(line.get_text()) for line in grid_html_lines]
-        grid_text = "\n".join(grid_lines)
 
         buffer_html_lines = buffer_soup.find_all("div", class_="BufferLine")
         buffer_lines = [clean(line.get_text()) for line in buffer_html_lines]
-        buffer_text = "\n".join(buffer_lines)
 
-        return grid_text + "\n\n" + buffer_text
+        return ScreenState(grid_lines=grid_lines, buffer_lines=buffer_lines)
 
     def close(self):
         if self.driver:
