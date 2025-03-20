@@ -43,7 +43,6 @@ class AnchorheadGame:
 
         actions = ActionChains(self.driver)
 
-        # Special case for single key commands like arrow keys
         if command in ["up", "down", "left", "right"]:
             key_map = {
                 "up": Keys.ARROW_UP,
@@ -52,56 +51,40 @@ class AnchorheadGame:
                 "right": Keys.ARROW_RIGHT,
             }
             actions.send_keys(key_map[command]).perform()
-            time.sleep(0.5)
-            current_state = self.get_game_text()
-            self.last_screen_state = current_state
-            return current_state
+            self.last_screen_state = self.get_game_text()
+            return self.last_screen_state
 
-        # For normal text commands
         actions.send_keys(command).perform()
-        time.sleep(0.2)
-
         state_after_typing = self.get_game_text()
 
-        # Check if the screen has already changed significantly
-        # This could indicate a "press any key" situation
         if self._did_unexpected_screen_change(
             self.last_screen_state, state_after_typing, command
         ):
             self.last_screen_state = state_after_typing
             return state_after_typing
 
-        # Otherwise, press Enter to submit the command
         actions.send_keys(Keys.ENTER).perform()
-        time.sleep(0.5)
+        self.last_screen_state = self.get_game_text()
 
-        current_state = self.get_game_text()
-        self.last_screen_state = current_state
-        return current_state
+        # TODO only get new text rather than repeating the whole screen
+        return self.last_screen_state
 
     def _did_unexpected_screen_change(self, old_state, new_state, command: str):
-        # Return if the screen changed other than the command being added to the end
-        # Otherwise, return True to indicate significant change
-
-        # Simple case: if lengths are very different, screen has changed
-        if abs(len(new_state) - len(old_state)) > len(command) + 5:
-            return True
-
-        # Check if the new state just has the command appended
+        if old_state == new_state:
+            return False
         if new_state.endswith(command) and old_state in new_state:
             return False
 
-        # Use difflib to calculate similarity
-        similarity = difflib.SequenceMatcher(None, old_state, new_state).ratio()
+        if abs(len(new_state) - len(old_state)) > len(command) + 5:
+            return True
 
-        # If similarity is low, screen has changed significantly
+        similarity = difflib.SequenceMatcher(None, old_state, new_state).ratio()
         return similarity < 0.9
 
     def get_game_text(self) -> str:
         if not self.driver:
             raise RuntimeError("Game not started. Call start() first.")
-
-        # gameport = self.driver.find_element(By.ID, "gameport")
+        time.sleep(0.5)
 
         grid = self.driver.find_element(By.CLASS_NAME, "GridWindow")
         buffer = self.driver.find_element(By.CLASS_NAME, "BufferWindow")
@@ -117,9 +100,7 @@ class AnchorheadGame:
         buffer_lines = [clean(line.get_text()) for line in buffer_html_lines]
         buffer_text = "\n".join(buffer_lines)
 
-        game_text = grid_text + "\n\n" + buffer_text
-
-        return game_text  # todo only get new text
+        return grid_text + "\n\n" + buffer_text
 
     def close(self):
         if self.driver:
