@@ -102,7 +102,7 @@ class AnchorheadGame:
         i = 0
         while i < min(len(old_lines), len(new_lines)) and old_lines[i] == new_lines[i]:
             i += 1
-        return '\n'.join(new_lines[i:]).strip()
+        return "\n".join(new_lines[i:]).strip()
 
     async def get_game_text(self) -> str:
         if not self.driver:
