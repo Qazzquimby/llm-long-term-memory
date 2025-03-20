@@ -21,7 +21,9 @@ NUM_WORDS_TO_CONSOLIDATE = 1250
 
 
 class EntityModel(BaseModel):
-    aliases: List[str]
+    aliases: List[str] = Field(
+        description="Names for the entity. Make the first one the most clear and canonical, as it will be used by default."
+    )
     brief: str = Field(
         description="1-2 sentence summary of the entity and your relationship with it."
     )

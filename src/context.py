@@ -82,7 +82,7 @@ class ContextItemEvaluation(BaseModel):
         description="""\
 How useful this item was in generating the new message:
 0 = Not useful or relevant to the response. Just noise.
-1 = Somewhat useful or relevant. 
+1 = Somewhat useful or relevant. Maybe wasn't used, but could have been. 
 2 = Clearly useful and influenced the response.
 """
     )
