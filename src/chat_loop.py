@@ -1,5 +1,6 @@
 from src.consolidation import should_consolidate, consolidate
-from src.context import get_assistant_context, evaluate_context
+from src.context import get_assistant_context
+from src.context_evaluation import evaluate_context
 from src.conversation import Conversation, ChatMessage, MODEL, Role
 from src.db import Message
 from sqlalchemy.orm import Session
