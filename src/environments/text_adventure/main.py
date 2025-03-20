@@ -18,47 +18,52 @@ import difflib
 class ScreenState:
     grid_lines: List[str]
     buffer_lines: List[str]
-    
+
     def __str__(self):
         grid_text = "\n".join(self.grid_lines)
         buffer_text = "\n".join(self.buffer_lines)
         return grid_text + "\n\n" + buffer_text
-    
+
     def is_similar_to(self, other):
         if not isinstance(other, ScreenState):
             return False
-        
+
         grid_similarity = difflib.SequenceMatcher(
             None, "\n".join(self.grid_lines), "\n".join(other.grid_lines)
         ).ratio()
-        
+
         buffer_similarity = difflib.SequenceMatcher(
             None, "\n".join(self.buffer_lines), "\n".join(other.buffer_lines)
         ).ratio()
-        
+
         return grid_similarity > 0.9 and buffer_similarity > 0.9
-    
-    def extract_new_content(self, other):
+
+    def get_added_content(self, other):
         if not isinstance(other, ScreenState):
             return ""
-        
-        new_grid = self._extract_new_lines(self.grid_lines, other.grid_lines)
-        new_buffer = self._extract_new_lines(self.buffer_lines, other.buffer_lines)
-        
+
+        added_grid_lines = self._get_added_lines(self.grid_lines, other.grid_lines)
+        added_buffer_lines = self._get_added_lines(
+            self.buffer_lines, other.buffer_lines
+        )
+
         result = []
-        if new_grid:
-            result.append("\n".join(new_grid))
-        if new_buffer:
-            result.append("\n".join(new_buffer))
-            
+        if added_grid_lines:
+            result.append("\n".join(added_grid_lines))
+        if added_buffer_lines:
+            result.append("\n".join(added_buffer_lines))
+
         return "\n\n".join(result)
-    
+
     @staticmethod
-    def _extract_new_lines(old_lines, new_lines):
+    def _get_added_lines(old_lines, updated_lines):
         i = 0
-        while i < min(len(old_lines), len(new_lines)) and old_lines[i] == new_lines[i]:
+        while (
+            i < min(len(old_lines), len(updated_lines))
+            and old_lines[i] == updated_lines[i]
+        ):
             i += 1
-        return new_lines[i:]
+        return updated_lines[i:]
 
 
 class AnchorheadGame:
@@ -101,39 +106,43 @@ class AnchorheadGame:
             }
             actions.send_keys(key_map[command]).perform()
             await asyncio.sleep(0.5)
-            new_state = await self.get_screen_state()
-            new_content = new_state.extract_new_content(self.last_screen_state)
-            self.last_screen_state = new_state
-            return new_content
+            updated_state = await self.get_screen_state()
+            added_content = updated_state.get_added_content(self.last_screen_state)
+            self.last_screen_state = updated_state
+            return added_content
 
         actions.send_keys(command).perform()
         await asyncio.sleep(0.2)
-        state_after_typing = await self.get_screen_state()
+        updated_state_after_typing = await self.get_screen_state()
 
-        if self._did_unexpected_screen_change(state_after_typing, command):
-            new_content = state_after_typing.extract_new_content(self.last_screen_state)
-            self.last_screen_state = state_after_typing
-            return new_content
+        if self._did_unexpected_screen_change(
+            updated_state_after_typing, command=command
+        ):
+            added_content = updated_state_after_typing.get_added_content(
+                self.last_screen_state
+            )
+            self.last_screen_state = updated_state_after_typing
+            return added_content
 
         actions.send_keys(Keys.ENTER).perform()
         await asyncio.sleep(0.5)
-        new_state = await self.get_screen_state()
-        new_content = new_state.extract_new_content(self.last_screen_state)
-        self.last_screen_state = new_state
-        return new_content
+        updated_state = await self.get_screen_state()
+        added_content = updated_state.get_added_content(self.last_screen_state)
+        self.last_screen_state = updated_state
+        return added_content
 
-    def _did_unexpected_screen_change(self, new_state, command: str):
+    def _did_unexpected_screen_change(self, updated_state: ScreenState, command: str):
         if self.last_screen_state is None:
             return False
-            
-        if not new_state.is_similar_to(self.last_screen_state):
+
+        if not updated_state.is_similar_to(self.last_screen_state):
             return True
-            
+
         # Check if command is visible at the end of any grid line
-        for line in new_state.grid_lines:
+        for line in updated_state.grid_lines:
             if line.endswith(command):
                 return False
-                
+
         return True
 
     async def get_screen_state(self) -> ScreenState:
