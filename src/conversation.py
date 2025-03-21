@@ -11,7 +11,7 @@ for parent in PROJECT_ROOT:
         PROJECT_ROOT = parent
         break
 
-HUMAN_MOCK = True
+HUMAN_MOCK = False
 
 
 def get_api_key(key_name):

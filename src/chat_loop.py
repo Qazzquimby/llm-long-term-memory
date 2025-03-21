@@ -35,6 +35,8 @@ class ChatLoop(ABC):
             environment_input = await self.get_environment_input(
                 llm_message=self._get_last_message()
             )
+            if not environment_input:
+                environment_input = "(Empty)"
             await self.process_response(environment_input=environment_input)
 
             if should_consolidate(self.conversation):
@@ -51,11 +53,14 @@ class ChatLoop(ABC):
         self.conversation.add_message(message=ChatMessage(content=environment_input))
 
         context = get_assistant_context(self.session)
+        if str(context):
+            self.conversation.add_message(
+                message=ChatMessage(
+                    content=str(context), role=Role.SYSTEM, ephemeral=True
+                ),
+                prepend=True,
+            )
 
-        self.conversation.add_message(
-            message=ChatMessage(content=str(context), role=Role.SYSTEM, ephemeral=True),
-            prepend=True,
-        )
         await self.conversation.run(MODEL)
 
         # todo this doesn't need to be awaited in real use I think.

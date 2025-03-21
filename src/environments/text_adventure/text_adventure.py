@@ -38,13 +38,15 @@ class ScreenState:
 
         return grid_similarity > 0.9 and buffer_similarity > 0.9
 
-    def get_added_content(self, other):
-        if not isinstance(other, ScreenState):
+    def get_added_content(self, updated_state):
+        if not isinstance(updated_state, ScreenState):
             return ""
 
-        added_grid_lines = self._get_added_lines(self.grid_lines, other.grid_lines)
+        added_grid_lines = self._get_added_lines(
+            self.grid_lines, updated_state.grid_lines
+        )
         added_buffer_lines = self._get_added_lines(
-            self.buffer_lines, other.buffer_lines
+            self.buffer_lines, updated_state.buffer_lines
         )
 
         result = []
@@ -57,13 +59,7 @@ class ScreenState:
 
     @staticmethod
     def _get_added_lines(old_lines, updated_lines):
-        i = 0
-        while (
-            i < min(len(old_lines), len(updated_lines))
-            and old_lines[i] == updated_lines[i]
-        ):
-            i += 1
-        return updated_lines[i:]
+
 
 
 class AnchorheadGame:
@@ -118,18 +114,28 @@ class AnchorheadGame:
         if self._did_unexpected_screen_change(
             updated_state_after_typing, command=command
         ):
-            added_content = updated_state_after_typing.get_added_content(
-                self.last_screen_state
+            added_content = self.last_screen_state.get_added_content(
+                updated_state_after_typing
             )
             self.last_screen_state = updated_state_after_typing
+            print("SCREEN CHANGED AFTER TYPING - NOT PRESSING RETURN")
             return added_content
 
-        actions.send_keys(Keys.ENTER).perform()
-        await asyncio.sleep(0.5)
-        updated_state = await self.get_screen_state()
-        added_content = updated_state.get_added_content(self.last_screen_state)
-        self.last_screen_state = updated_state
-        return added_content
+        actions.send_keys(Keys.RETURN).perform()
+
+        added_content = None
+        updated_state = None
+        for attempt in range(10):
+            await asyncio.sleep(0.5)
+            updated_state = await self.get_screen_state()
+            added_content = self.last_screen_state.get_added_content(updated_state)
+            self.last_screen_state = updated_state
+
+        if added_content:
+            return added_content
+        else:
+            print("WARN: No change after inputting command:", command)
+            return str(updated_state)
 
     def _did_unexpected_screen_change(self, updated_state: ScreenState, command: str):
         if self.last_screen_state is None:

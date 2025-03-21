@@ -23,6 +23,8 @@ class TextAdventureChatLoop(ChatLoop):
 You are playing the classic text adventure Anchorhead!
 Respond with commands, and see if you can win.
 Think things through, then put your input to the game on the final line of your responses.
+
+For the first couple inputs they just want a single character, else you'll skip multiple pages!
 \n\n
 """
             game_start_text = await self.game.start()
