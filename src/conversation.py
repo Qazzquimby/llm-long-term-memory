@@ -1,9 +1,14 @@
 import enum
 import os
 from pathlib import Path
-import asyncio
+from typing import Type
 
-import aiohttp
+from pydantic import BaseModel
+from pydantic_ai import Agent
+from pydantic_ai.messages import ModelMessagesTypeAdapter
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.result import ResultDataT
 
 PROJECT_ROOT = Path(__file__).resolve().parents
 for parent in PROJECT_ROOT:
@@ -28,32 +33,6 @@ def get_api_key(key_name):
 
 MODEL = "openrouter/anthropic/claude-3.7-sonnet"
 OPENROUTER_API_KEY = get_api_key("OPENROUTER_API_KEY")
-
-
-async def completion(model, messages, timeout=60, num_retries=0):
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-    }
-    data = {
-        "model": model.replace("openrouter/", ""),
-        "messages": messages,
-    }
-
-    async with aiohttp.ClientSession() as session:
-        for _ in range(1 + num_retries):
-            try:
-                async with session.post(
-                    url="https://openrouter.ai/api/v1/chat/completions",
-                    headers=headers,
-                    json=data,
-                    timeout=timeout,
-                ) as response:
-                    return await response.json()
-            except aiohttp.ClientError as e:
-                print(f"Error: {e}")
-                if num_retries > 0:
-                    await asyncio.sleep(1)
-                    continue
 
 
 class Role(enum.Enum):
@@ -89,13 +68,24 @@ class ChatMessage:
     def to_llm_friendly(self):
         return {"role": self.role.value, "content": self.content}
 
+    def to_pydantic_ai(self):
+        return ModelMessagesTypeAdapter.validate_json(
+            {"role": self.role.value, "content": self.content}
+        )
+
 
 class Conversation:
-    def __init__(self, messages=None, add_message_callback=None):
+    def __init__(
+        self,
+        messages=None,
+        add_message_callback=None,
+        result_type: Type[BaseModel] = None,
+    ):
         if messages is None:
             messages = []
         self.messages: list[ChatMessage] = messages
         self.add_message_callback = add_message_callback
+        self.result_type = result_type
 
     def add_message(self, message: ChatMessage, prepend=False):
         if prepend:
@@ -107,41 +97,39 @@ class Conversation:
             self.add_message_callback(message=message)
         return self
 
-    async def run(self, model, should_print=True, max_messages=None) -> str:
+    async def run(
+        self,
+        model,
+        should_print=True,
+        max_messages=None,
+        result_type: Type[BaseModel] = None,
+    ) -> str:
         message_to_show = [msg for msg in self.messages if not msg.hidden]
         if max_messages:
             message_to_show = message_to_show[-max_messages:]
 
-        if HUMAN_MOCK:
-            print("\nMOCK MODE: Please provide a response for the following prompt:\n")
-            print("Context:")
-            for msg in message_to_show:
-                print(msg)
-            response_text = input("Enter your response: ")
-        else:
-            llm_friendly_messages = [
-                message.to_llm_friendly() for message in message_to_show
-            ]
-            try:
-                response = await completion(
-                    model=model,
-                    messages=llm_friendly_messages,
-                    timeout=60,
-                    num_retries=2,
-                )
-                response_text = response["choices"][0]["message"]["content"]
-            except Exception as e:
-                print("COMPLETION FAILED. Try to manually fix before continuing.", e)
-                try:
-                    response = await completion(
-                        model=model,
-                        messages=llm_friendly_messages,
-                        timeout=60,
-                        num_retries=2,
-                    )
-                    response_text = response["choices"][0]["message"]["content"]
-                except Exception as e:
-                    return f"(No response) {e}"
+        # if HUMAN_MOCK:
+        #     print("\nMOCK MODE: Please provide a response for the following prompt:\n")
+        #     print("Context:")
+        #     for msg in message_to_show:
+        #         print(msg)
+        #     response_text = input("Enter your response: ")
+        #     result = None
+        # else:
+        llm_friendly_messages = [
+            message.to_llm_friendly() for message in message_to_show
+        ]
+        active_result_type = result_type or self.result_type
+        if active_result_type is None:
+            active_result_type = str
+
+        result = await self.call_llm(
+            model=model,
+            result_type=active_result_type,
+            message_history=llm_friendly_messages,
+        )
+        response_text = str(result.data)
+
         self.add_message(ChatMessage(content=response_text, role=Role.ASSISTANT))
         if should_print:
             print(f"Bot: {response_text}\n\n")
@@ -149,4 +137,29 @@ class Conversation:
         for message in self.messages:
             if message.ephemeral:
                 message.hidden = True
-        return response_text
+
+        return result.data
+
+    async def call_llm(
+        self,
+        model: str,
+        result_type: ResultDataT,
+        message_history: list[ChatMessage],
+    ):
+        agent = Agent(
+            model=OpenAIModel(
+                model.replace("openrouter/", ""),
+                provider=OpenAIProvider(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=OPENROUTER_API_KEY,
+                ),
+            ),
+            result_type=result_type,
+        )
+        pydantic_messages = [message.to_pydantic_ai() for message in message_history]
+        # todo handle hidden?
+        response = await agent.run(
+            user_prompt=message_history[-1].content,
+            message_history=pydantic_messages[:-1],
+        )
+        return response
