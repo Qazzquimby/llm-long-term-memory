@@ -12,27 +12,9 @@ MAX_CONVERSATION_LENGTH = 1000  # preventing infinite loops
 
 
 class ChatLoop(ABC):
-    @abstractmethod
-    async def run(
-        self, session: Session, previous_messages: Optional[List[ChatMessage]] = None
-    ):
-        pass
+    def __init__(self, session: Session, previous_messages=None):
+        self.session = session
 
-    @abstractmethod
-    async def get_user_input(self) -> str:
-        pass
-
-    @abstractmethod
-    async def process_response(
-        self, session: Session, user_input: str, conversation: Conversation
-    ):
-        pass
-
-
-class HumanChatLoop(ChatLoop):
-    async def run(
-        self, session: Session, previous_messages: Optional[List[ChatMessage]] = None
-    ):
         def save_message(message: ChatMessage):
             if message.ephemeral:
                 return
@@ -42,45 +24,63 @@ class HumanChatLoop(ChatLoop):
         if previous_messages is None:
             previous_messages = []
 
-        conversation = Conversation(
+        if previous_messages is None:
+            previous_messages = []
+        self.conversation = Conversation(
             messages=previous_messages, add_message_callback=save_message
         )
-        prompt_session = PromptSession(message="You: ")
 
-        for _ in range(MAX_CONVERSATION_LENGTH):
-            user_input = await self.get_user_input(prompt_session)
+    @abstractmethod
+    async def run(self):
+        pass
 
-            await self.process_response(
-                session=session, user_input=user_input, conversation=conversation
-            )
+    @abstractmethod
+    async def get_environment_input(self) -> str:
+        pass
 
-            if should_consolidate(conversation):
-                await consolidate(session=session, conversation=conversation)
-
-    async def get_user_input(self, prompt_session: PromptSession) -> str:
-        return await prompt_session.prompt_async()
-
+    @abstractmethod
     async def process_response(
-        self, session: Session, user_input: str, conversation: Conversation
+        self,
+        environment_input: str,
     ):
-        conversation.add_message(message=ChatMessage(content=user_input))
+        self.conversation.add_message(message=ChatMessage(content=environment_input))
 
-        context = get_assistant_context(session)
+        context = get_assistant_context(self.session)
 
-        conversation.add_message(
+        self.conversation.add_message(
             message=ChatMessage(content=str(context), role=Role.SYSTEM, ephemeral=True),
             prepend=True,
         )
-        await conversation.run(MODEL)
+        await self.conversation.run(MODEL)
 
         # todo this doesn't need to be awaited in real use I think.
         await evaluate_context(
-            session=session,
+            session=self.session,
             context=context,
-            conversation=conversation,
+            conversation=self.conversation,
         )
 
 
+class HumanChatLoop(ChatLoop):
+    def __init__(
+        self, session: Session, previous_messages: Optional[List[ChatMessage]] = None
+    ):
+        super().__init__(session=session, previous_messages=previous_messages)
+
+        self.prompt_session = PromptSession(message="You: ")
+
+    async def run(self):
+        for _ in range(MAX_CONVERSATION_LENGTH):
+            environment_input = await self.get_environment_input()
+            await self.process_response(environment_input=environment_input)
+
+            if should_consolidate(self.conversation):
+                await consolidate(session=self.session, conversation=self.conversation)
+
+    async def get_environment_input(self) -> str:
+        return await self.prompt_session.prompt_async()
+
+
 async def conversation_loop(session: Session, previous_messages=None):
-    chat_loop = HumanChatLoop()
-    await chat_loop.run(session, previous_messages)
+    chat_loop = HumanChatLoop(session=session, previous_messages=previous_messages)
+    await chat_loop.run()

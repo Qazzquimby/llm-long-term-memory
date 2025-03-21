@@ -1,7 +1,7 @@
 import asyncio
 
-from src.chat_loop import ChatLoop, MAX_CONVERSATION_LENGTH
-from src.conversation import Conversation, ChatMessage, MODEL, Role, completion
+from src.chat_loop import ChatLoop
+from src.conversation import Conversation, ChatMessage, MODEL, Role
 from src.context import get_assistant_context
 from src.context_evaluation import evaluate_context
 from src.consolidation import should_consolidate, consolidate
@@ -12,10 +12,10 @@ from typing import List, Optional
 
 
 class TextAdventureChatLoop(ChatLoop):
-    def __init__(self, headless=True, max_turns=100):
+    def __init__(self, headless=True, max_turns=1000, human_observer=True):
         self.game = AnchorheadGame(headless=headless)
         self.max_turns = max_turns
-        self.human_observer = False
+        self.human_observer = human_observer
 
     async def run(
         self, session: Session, previous_messages: Optional[List[ChatMessage]] = None
@@ -34,28 +34,25 @@ class TextAdventureChatLoop(ChatLoop):
         )
 
         try:
-            # Start the game and get initial text
             initial_text = await self.game.start()
 
-            # Add initial game state as a system message
             conversation.add_message(
                 message=ChatMessage(
-                    content=f"You are playing a text adventure game called Anchorhead. "
-                    f"Respond with commands to explore the game world. "
-                    f"Here is the initial game state:\n\n{initial_text}",
+                    content=f"""\
+You are playing the classic text adventure Anchorhead!
+Respond with commands, and see if you can win.
+Think things through, then put your input to the game on the final line of your responses.""",
                     role=Role.SYSTEM,
                 ),
             )
 
-            # Add a prompt for the LLM to make its first move
             conversation.add_message(
                 message=ChatMessage(
-                    content="What command would you like to send to the game?",
+                    content=initial_text,
                     role=Role.USER,
-                ),
+                )
             )
 
-            # Get the first command from the LLM
             context = get_assistant_context(session)
             conversation.add_message(
                 message=ChatMessage(
@@ -63,30 +60,20 @@ class TextAdventureChatLoop(ChatLoop):
                 ),
                 prepend=True,
             )
-
-            # Run the initial conversation to get the first command
             await conversation.run(MODEL)
 
-            # Extract the LLM's first command
-            first_command = conversation.messages[-1].content
-
-            # Now start the main game loop
             for turn in range(self.max_turns):
-                # Get the last assistant message (which contains the command)
-                llm_command = conversation.messages[-1].content
+                last_message = conversation.messages[-1].content
+                llm_command = get_command(last_message)
 
-                # Print for human observer if enabled
                 if self.human_observer:
                     print(f"\nLLM Command: {llm_command}")
 
-                # Process the command with the game
                 game_response = await self.game.send_command(llm_command)
 
-                # Print for human observer if enabled
                 if self.human_observer:
                     print(f"\nGame Response:\n{game_response}")
 
-                # Add the game's response as a user message (from the LLM's perspective)
                 conversation.add_message(
                     message=ChatMessage(
                         content=f"Game response:\n{game_response}\n\nWhat command would you like to send next?",
@@ -94,7 +81,6 @@ class TextAdventureChatLoop(ChatLoop):
                     ),
                 )
 
-                # Get context and add it as an ephemeral system message
                 context = get_assistant_context(session)
                 conversation.add_message(
                     message=ChatMessage(
@@ -103,10 +89,8 @@ class TextAdventureChatLoop(ChatLoop):
                     prepend=True,
                 )
 
-                # Run the conversation to get the next command
                 await conversation.run(MODEL)
 
-                # Evaluate context
                 await evaluate_context(
                     session=session,
                     context=context,
@@ -138,17 +122,24 @@ class TextAdventureChatLoop(ChatLoop):
         finally:
             self.game.close()
 
-    async def get_user_input(self) -> str:
+    async def get_environment_input(self) -> str:
         # This method is not used in this implementation
         # since input comes from the LLM, not a human user
         raise NotImplementedError("TextAdventureChatLoop doesn't use get_user_input")
 
     async def process_response(
-        self, session: Session, user_input: str, conversation: Conversation
+        self, session: Session, environment_input: str, conversation: Conversation
     ):
         # This method is not used in this implementation
         # since the processing happens in the run method
         raise NotImplementedError("TextAdventureChatLoop doesn't use process_response")
+
+
+def get_command(llm_response):
+    try:
+        return llm_response.split("\n")[-1].strip()
+    except IndexError:
+        return ""
 
 
 async def text_adventure_loop(
