@@ -70,7 +70,7 @@ class AnchorheadGame:
     def __init__(self, headless=True):
         self.headless = headless
         self.driver = None
-        self.game_path = Path("anchor.z8.html")
+        self.game_path = Path("environments/text_adventure/anchor.z8.html")
         self.game_url = f"file://{os.path.abspath(self.game_path)}"
         self.last_screen_state = None
 

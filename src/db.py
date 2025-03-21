@@ -274,12 +274,12 @@ class Fact(ContextItem):
     # )
 
 
-def get_engine(db_url="sqlite:///memory.db"):
+def _get_engine(db_url="sqlite:///memory.db"):
     return create_engine(db_url)
 
 
-def get_sessionmaker(engine=None):
-    engine = engine or get_engine()
+def _get_sessionmaker(engine=None):
+    engine = engine or _get_engine()
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -290,8 +290,8 @@ def get_sessionmaker(engine=None):
 
 
 def get_db_factory():
-    engine = get_engine()
+    engine = _get_engine()
     # Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
-    SessionLocal = get_sessionmaker()
+    SessionLocal = _get_sessionmaker()
     return SessionLocal

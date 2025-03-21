@@ -66,7 +66,10 @@ class ChatLoop(ABC):
         )
 
     def _get_last_message(self):
-        return self.conversation.messages[-1].content
+        try:
+            return self.conversation.messages[-1].content
+        except IndexError:
+            return ""
 
 
 class HumanChatLoop(ChatLoop):

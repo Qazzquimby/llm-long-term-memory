@@ -1,9 +1,7 @@
-import asyncio
 from typing import Optional
 
 from src.chat_loop import ChatLoop
 from src.environments.text_adventure.text_adventure import AnchorheadGame
-from src.db import get_engine, get_sessionmaker
 from sqlalchemy.orm import Session
 
 
@@ -40,21 +38,3 @@ Think things through, then put your input to the game on the final line of your 
             return llm_response.split("\n")[-1].strip()
         except IndexError:
             return ""
-
-
-async def main():
-    engine = get_engine()
-    Session = get_sessionmaker(engine)
-
-    with Session() as session:
-        chat_loop = TextAdventureChatLoop(
-            session=session,
-            previous_messages=None,
-            headless=False,
-            human_observer=True,
-        )
-        await chat_loop.run()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
