@@ -32,7 +32,9 @@ class ChatLoop(ABC):
 
     async def run(self):
         for _ in range(MAX_CONVERSATION_LENGTH):
-            environment_input = await self.get_environment_input(llm_message=self._get_last_message())
+            environment_input = await self.get_environment_input(
+                llm_message=self._get_last_message()
+            )
             await self.process_response(environment_input=environment_input)
 
             if should_consolidate(self.conversation):
@@ -42,7 +44,6 @@ class ChatLoop(ABC):
     async def get_environment_input(self, llm_message=Optional[str]) -> str:
         pass
 
-    @abstractmethod
     async def process_response(
         self,
         environment_input: str,
@@ -67,6 +68,7 @@ class ChatLoop(ABC):
     def _get_last_message(self):
         return self.conversation.messages[-1].content
 
+
 class HumanChatLoop(ChatLoop):
     def __init__(
         self, session: Session, previous_messages: Optional[List[ChatMessage]] = None
@@ -75,7 +77,7 @@ class HumanChatLoop(ChatLoop):
 
         self.prompt_session = PromptSession(message="You: ")
 
-    async def get_environment_input(self) -> str:
+    async def get_environment_input(self, llm_message: Optional[str] = None) -> str:
         return await self.prompt_session.prompt_async()
 
 
