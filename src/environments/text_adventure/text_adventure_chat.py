@@ -24,7 +24,7 @@ You are playing the classic text adventure Anchorhead!
 Respond with commands, and see if you can win.
 Think things through, then put your input to the game on the final line of your responses.
 
-For the first couple inputs they just want a single character, else you'll skip multiple pages!
+For the first couple inputs they just want a single character, else you'll skip multiple pages! You'll input *exactly* what you type on the last line, so write your input verbatim.
 \n\n
 """
             game_start_text = await self.game.start()

@@ -59,7 +59,16 @@ class ScreenState:
 
     @staticmethod
     def _get_added_lines(old_lines, updated_lines):
-
+        diff = difflib.ndiff(old_lines, updated_lines)
+        added_lines = []
+        
+        for line in diff:
+            if line.startswith('+ '):
+                added_lines.append(line[2:])
+            elif line.startswith('? '):
+                continue
+        
+        return added_lines
 
 
 class AnchorheadGame:
