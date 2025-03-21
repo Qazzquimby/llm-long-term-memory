@@ -61,13 +61,12 @@ class ScreenState:
     def _get_added_lines(old_lines, updated_lines):
         diff = difflib.ndiff(old_lines, updated_lines)
         added_lines = []
-        
         for line in diff:
-            if line.startswith('+ '):
+            if line.startswith("+ "):
                 added_lines.append(line[2:])
-            elif line.startswith('? '):
+            elif line.startswith("? "):
                 continue
-        
+
         return added_lines
 
 
@@ -79,7 +78,7 @@ class AnchorheadGame:
         self.game_url = f"file://{os.path.abspath(self.game_path)}"
         self.last_screen_state = None
 
-    async def start(self) -> str:
+    async def start(self, setup_commands=None) -> str:
         options = Options()
         if self.headless:
             options.add_argument("--headless")
@@ -92,59 +91,42 @@ class AnchorheadGame:
         )
 
         await asyncio.sleep(1)
-
         self.last_screen_state = await self.get_screen_state()
+
+        await self.send_command("", get_response=False)  # pass title screen
+        await self.send_command("", get_response=False)  # pass intro screen
+        await self.send_command("", get_response=True)  # pass start of day 1
+
+        if setup_commands is not None:
+            for cmd in setup_commands:
+                await self.send_command(cmd)
+
         return str(self.last_screen_state)
 
-    async def send_command(self, command) -> str:
+    async def send_command(self, command, get_response=True) -> str:
         if not self.driver:
             raise RuntimeError("Game not started. Call start() first.")
 
         actions = ActionChains(self.driver)
-
-        if command in ["up", "down", "left", "right"]:
-            key_map = {
-                "up": Keys.ARROW_UP,
-                "down": Keys.ARROW_DOWN,
-                "left": Keys.ARROW_LEFT,
-                "right": Keys.ARROW_RIGHT,
-            }
-            actions.send_keys(key_map[command]).perform()
-            await asyncio.sleep(0.5)
-            updated_state = await self.get_screen_state()
-            added_content = updated_state.get_added_content(self.last_screen_state)
-            self.last_screen_state = updated_state
-            return added_content
-
         actions.send_keys(command).perform()
-        await asyncio.sleep(0.2)
-        updated_state_after_typing = await self.get_screen_state()
-
-        if self._did_unexpected_screen_change(
-            updated_state_after_typing, command=command
-        ):
-            added_content = self.last_screen_state.get_added_content(
-                updated_state_after_typing
-            )
-            self.last_screen_state = updated_state_after_typing
-            print("SCREEN CHANGED AFTER TYPING - NOT PRESSING RETURN")
-            return added_content
-
         actions.send_keys(Keys.RETURN).perform()
 
-        added_content = None
-        updated_state = None
-        for attempt in range(10):
-            await asyncio.sleep(0.5)
-            updated_state = await self.get_screen_state()
-            added_content = self.last_screen_state.get_added_content(updated_state)
-            self.last_screen_state = updated_state
+        if get_response:
+            added_content = None
+            updated_state = None
+            for attempt in range(10):
+                await asyncio.sleep(0.5)
+                updated_state = await self.get_screen_state()
+                added_content = self.last_screen_state.get_added_content(updated_state)
+                if added_content:
+                    break
 
-        if added_content:
-            return added_content
-        else:
-            print("WARN: No change after inputting command:", command)
-            return str(updated_state)
+            self.last_screen_state = updated_state
+            if added_content:
+                return added_content
+            else:
+                print("WARN: No change after inputting command:", command)
+                return str(updated_state)
 
     def _did_unexpected_screen_change(self, updated_state: ScreenState, command: str):
         if self.last_screen_state is None:
