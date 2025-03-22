@@ -89,43 +89,12 @@ Anchorhead...
 
             return game_response
 
-    @staticmethod
-    def _extract_command(llm_response):
-        try:
-            return llm_response.split("\n")[-1].strip()
-        except IndexError:
-            return ""
-
     def extract_commands_from_db(self) -> List[str]:
-        """Extract all game commands from the database messages"""
-        commands = []  # todo pretty sure this is duplicate.
-
-        # Get the last message summary index if any
-        last_summary = (
-            self.session.query(MessageSummary)
-            .order_by(desc(MessageSummary.created_at_message_index))
-            .first()
-        )
-        last_summary_index = (
-            last_summary.created_at_message_index if last_summary else -1
-        )
-
-        # Get all assistant messages
-        messages = (
-            self.session.query(Message).filter(Message.sender == Role.ASSISTANT).all()
-        )
-
-        for message in messages:
-            try:
-                # Try to parse the message as a TextAdventureResponseModel
+        commands = []
+        for message in self.conversation.messages:
+            if message.sender == Role.ASSISTANT:
                 response_obj = TextAdventureResponseModel.model_validate_json(
                     message.body
                 )
                 commands.append(response_obj.command)
-            except Exception:
-                # If parsing fails, try to extract the command from the last line
-                command = self._extract_command(message.body)
-                if command:
-                    commands.append(command)
-
         return commands
