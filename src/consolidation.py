@@ -1,4 +1,4 @@
-from typing import List, Literal
+from typing import List
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
@@ -6,7 +6,13 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from sqlalchemy.orm import Session
 
-from src.conversation import Conversation, ChatMessage, Role, MODEL, OPENROUTER_API_KEY
+from src.context import (
+    get_consolidator_context,
+    EntityModel,
+    FactModel,
+    MessageSummaryModel,
+)
+from src.conversation import Conversation, Role, MODEL, OPENROUTER_API_KEY
 from src.db import (
     Entity,
     EntityAlias,
@@ -18,15 +24,6 @@ from src.db import (
 
 MAX_CHAT_WORDS_BEFORE_CONSOLIDATION = 2500
 NUM_WORDS_TO_CONSOLIDATE = 1250
-
-
-class EntityModel(BaseModel):
-    aliases: List[str] = Field(
-        description="Names for the entity. Make the first one the most clear and canonical, as it will be used by default."
-    )
-    brief: str = Field(
-        description="1-2 sentence summary of the entity and your relationship with it."
-    )
 
 
 class UpdatedEntityModel(EntityModel):
@@ -42,48 +39,8 @@ importance_string_to_value = {
 }
 
 
-class ContextItemModel(BaseModel):
-    importance: Literal[
-        "trivial",
-        "probably not important",
-        "probably important",
-        "clearly important",
-        "critically important",
-    ] = Field(
-        description="Strategic importance. One of: trivial, unimportant, probably important, very important, critically important"
-    )
-
-    # importance: conint(ge=1, le=10) = Field(
-    #     description="Strategic importance. 1 is trivial, 5 is probably important, and 10 is absolutely critical"
-    # )
-    # salience: conint(ge=1, le=10) = Field(
-    #     description="Emotional valence. 1 is has no affect on you, 5 has some emotional impact, and 10 is a burned in part of your identity"
-    # )
-
-
-class FactModel(ContextItemModel):
-    body: str = Field(
-        "~1 sentence. Facts should be largely timeless, not about events or current status"
-    )
-    relevant_entity_names: List[str] = Field(
-        description="Names of any entities related to this fact. You must use one of their aliases exactly.",
-    )
-
-    def __str__(self):
-        return f"I:{self.importance} {self.body}"
-
-
 class UpdatedFactModel(FactModel):
     index: int
-
-
-class MessageSummaryModel(ContextItemModel):
-    body: str = Field(
-        description="Stay concise and focus on events rather than factual statements (handled elsewhere). Write it like how you'd recall a memory, focusing on what stands out or seems important."
-    )
-    relevant_entity_names: List[str] = Field(
-        description="Names of any entities in or closely related to these events. You must use one of their aliases exactly.",
-    )
 
 
 class ConsolidateResult(BaseModel):
@@ -164,7 +121,7 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     session.commit()
 
     new_facts = []
-    for fact_data in result.data.new_facts: # todo data is type any
+    for fact_data in result.data.new_facts:  # todo data is type any
         new_fact = Fact(
             body=fact_data.body,
             importance=importance_string_to_value.get(fact_data.importance),
@@ -223,45 +180,3 @@ def get_consolidation_window_and_index(conversation: Conversation):
 
     consolidate_window = non_hidden_messages[:split_index]
     return consolidate_window, start_index
-
-
-class ConsolidatorContext(BaseModel):
-    past_message_summaries: List[MessageSummaryModel]
-    entities: List[EntityModel]
-    facts: List[FactModel]
-
-    def __str__(self):
-        parts = []
-        if self.past_message_summaries:
-            parts.append("SUMMARIES OF PAST MESSAGES:")
-            parts.append(
-                "\n\n".join([str(summary) for summary in self.past_message_summaries])
-            )
-
-        if self.entities:
-            parts.append("ENTITIES:")
-            parts.append(
-                "\n\n".join(
-                    [f"{i}: {entity}" for i, entity in enumerate(self.entities)]
-                )
-            )
-
-        if self.facts:
-            parts.append("FACTS:")
-            parts.append(
-                "\n\n".join([f"{i}: {fact}" for i, fact in enumerate(self.facts)])
-            )
-
-        return "\n\n".join(parts)
-
-
-async def get_consolidator_context(
-    consolidation_window: List[ChatMessage],
-) -> ConsolidatorContext:
-
-    context_summaries = []  # todo use db
-    entities = []
-    facts = []
-    return ConsolidatorContext(
-        past_message_summaries=context_summaries, entities=entities, facts=facts
-    )

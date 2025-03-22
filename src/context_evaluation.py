@@ -47,8 +47,6 @@ async def evaluate_context(
     conversation: Conversation,
 ):
     new_message = conversation.messages[-1]
-
-    # Skip evaluation if there are no context items
     if not (context.facts or context.entities or context.message_summaries):
         return
 
