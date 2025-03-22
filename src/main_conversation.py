@@ -24,7 +24,7 @@ def little_main():
     )
     agent = Agent(model)
     result = agent.run_sync(
-        "What are two syllable words related to 'soul', possibly a prefix"
+        "What are two syllable words related to 'soul', possibly a prefix? For example 'bio' is a two syllable prefix for life."
     )
     print(result)
 

@@ -5,7 +5,13 @@ from typing import Type
 
 from pydantic import BaseModel
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelMessagesTypeAdapter
+from pydantic_ai.messages import (
+    ModelMessagesTypeAdapter,
+    TextPart,
+    ModelResponse,
+    ModelRequest,
+    UserPromptPart,
+)
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.result import ResultDataT
@@ -69,9 +75,10 @@ class ChatMessage:
         return {"role": self.role.value, "content": self.content}
 
     def to_pydantic_ai(self):
-        return ModelMessagesTypeAdapter.validate_json(
-            {"role": self.role.value, "content": self.content}
-        )
+        if self.role == Role.ASSISTANT:
+            return ModelResponse(parts=[TextPart(content=self.content)])
+        else:
+            return ModelRequest(parts=[UserPromptPart(content=self.content)])
 
 
 class Conversation:
@@ -126,7 +133,7 @@ class Conversation:
         result = await self.call_llm(
             model=model,
             result_type=active_result_type,
-            message_history=llm_friendly_messages,
+            message_history=message_to_show,
         )
         response_text = str(result.data)
 
@@ -156,10 +163,12 @@ class Conversation:
             ),
             result_type=result_type,
         )
-        pydantic_messages = [message.to_pydantic_ai() for message in message_history]
-        # todo handle hidden?
+        pydantic_messages = [
+            message.to_pydantic_ai() for message in message_history[:-1]
+        ]
+        user_prompt = message_history[-1].content
         response = await agent.run(
-            user_prompt=message_history[-1].content,
-            message_history=pydantic_messages[:-1],
+            user_prompt=user_prompt,
+            message_history=pydantic_messages,
         )
         return response
