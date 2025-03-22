@@ -45,7 +45,7 @@ class UpdatedFactModel(FactModel):
 
 class ConsolidateResult(BaseModel):
     summary: MessageSummaryModel = Field(
-        description="Summary of the new messages, first person, from the perspective of 'Me'. Focus on what you'd want to remember, being concise."
+        description="Summary of the new messages, first person, from the perspective of 'Me'. Focus on what will be strategically useful to remember, being concise."
     )
     new_entities: List[EntityModel] = Field(
         description="New entities not already in the context. Entities should be things deserving of a wiki-page in your personal notes, not just any noun."
@@ -59,8 +59,6 @@ class ConsolidateResult(BaseModel):
     updated_facts: List[UpdatedFactModel] = Field(
         description="For any facts in the context that are now made out of date, write a new version to replace them."
     )
-
-    # Get new key info very rarely? Leave out for now
 
 
 consolidator_agent = Agent(
@@ -115,9 +113,9 @@ For simplicity, speak in first person, where your character is "I". Out of chara
 
     # update db
 
-    for alias_row in result.data.new_entities:
-        new_entity = Entity(brief=alias_row.brief)
-        for alias in alias_row.aliases:
+    for entity_row in result.data.new_entities:
+        new_entity = Entity(brief=entity_row.brief)
+        for alias in entity_row.aliases:
             new_entity.aliases.append(EntityAlias(alias=alias))
         session.add(new_entity)
     session.commit()
@@ -149,7 +147,6 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     new_message_summary = MessageSummary(
         # TODO created at message index
         importance=result.data.summary.importance,
-        salience=result.data.summary.salience,
         body=result.data.summary.body,
         facts=new_facts,
         entities=entities_in_scene,
