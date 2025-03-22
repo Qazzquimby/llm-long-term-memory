@@ -82,7 +82,7 @@ class ContextItem(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     importance: Mapped[int] = mapped_column()
-    salience: Mapped[int] = mapped_column()
+    # salience: Mapped[int] = mapped_column()
     created_at_message_index: Mapped[int] = mapped_column()
     updated_at_message_index: Mapped[int] = mapped_column(nullable=True)
 

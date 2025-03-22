@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Literal
 
-from pydantic import BaseModel, Field, conint
+from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -33,13 +33,32 @@ class UpdatedEntityModel(EntityModel):
     index: int
 
 
+importance_string_to_value = {
+    "trivial": 1,
+    "probably not important": 2,
+    "probably important": 3,
+    "clearly important": 4,
+    "critically important": 5,
+}
+
+
 class ContextItemModel(BaseModel):
-    importance: conint(ge=1, le=10) = Field(
-        description="Strategic importance. 1 is trivial, 5 is probably important, and 10 is absolutely critical"
+    importance: Literal[
+        "trivial",
+        "probably not important",
+        "probably important",
+        "clearly important",
+        "critically important",
+    ] = Field(
+        description="Strategic importance. One of: trivial, unimportant, probably important, very important, critically important"
     )
-    salience: conint(ge=1, le=10) = Field(
-        description="Emotional valence. 1 is has no affect on you, 5 has some emotional impact, and 10 is a burned in part of your identity"
-    )
+
+    # importance: conint(ge=1, le=10) = Field(
+    #     description="Strategic importance. 1 is trivial, 5 is probably important, and 10 is absolutely critical"
+    # )
+    # salience: conint(ge=1, le=10) = Field(
+    #     description="Emotional valence. 1 is has no affect on you, 5 has some emotional impact, and 10 is a burned in part of your identity"
+    # )
 
 
 class FactModel(ContextItemModel):
@@ -51,7 +70,7 @@ class FactModel(ContextItemModel):
     )
 
     def __str__(self):
-        return f"I:{self.importance} S:{self.salience} {self.body}"
+        return f"I:{self.importance} {self.body}"
 
 
 class UpdatedFactModel(FactModel):
@@ -145,11 +164,11 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     session.commit()
 
     new_facts = []
-    for fact_data in result.data.new_facts:
+    for fact_data in result.data.new_facts: # todo data is type any
         new_fact = Fact(
             body=fact_data.body,
-            importance=fact_data.importance,
-            salience=fact_data.salience,
+            importance=importance_string_to_value.get(fact_data.importance),
+            # salience=fact_data.salience,
             created_at_message_index=start_index,
         )
         session.add(new_fact)
