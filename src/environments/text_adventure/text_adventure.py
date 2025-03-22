@@ -194,24 +194,5 @@ async def play_interactive():
         game.close()
 
 
-async def example_usage():
-    game = AnchorheadGame(headless=True)
-
-    try:
-        initial_text = await game.start()
-        print("Game started with text:")
-        print(initial_text[:400] + "...")
-
-        commands = ["look", "inventory", "examine me"]
-
-        for command in commands:
-            print(f"\nSending command: {command}")
-            response = await game.send_command(command)
-            print(f"Response: {response[:200]}...")
-
-    finally:
-        game.close()
-
-
 if __name__ == "__main__":
     asyncio.run(play_interactive())
