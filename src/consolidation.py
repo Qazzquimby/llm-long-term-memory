@@ -82,7 +82,9 @@ def should_consolidate(conversation: Conversation):
 
 
 async def consolidate(session: Session, conversation: Conversation):
-    consolidation_window, start_index = get_consolidation_window_and_index(conversation)
+    consolidation_window, end_index = get_consolidation_window_and_end_index(
+        conversation
+    )
     consolidator_context = await get_consolidator_context(consolidation_window)
     for message in consolidation_window:
         message.hidden = True
@@ -126,7 +128,7 @@ For simplicity, speak in first person, where your character is "I". Out of chara
             body=fact_data.body,
             importance=importance_string_to_value.get(fact_data.importance),
             # salience=fact_data.salience,
-            created_at_message_index=start_index,
+            created_at_message_index=end_index,
         )
         session.add(new_fact)
 
@@ -154,7 +156,7 @@ For simplicity, speak in first person, where your character is "I". Out of chara
         messages=[
             Message(body=msg.content, sender=msg.role) for msg in consolidation_window
         ],
-        created_at_message_index=start_index,
+        created_at_message_index=end_index,
     )
 
     session.add(new_message_summary)
@@ -163,7 +165,7 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     return
 
 
-def get_consolidation_window_and_index(conversation: Conversation):
+def get_consolidation_window_and_end_index(conversation: Conversation):
     start_index = next(
         (i for i, msg in enumerate(conversation.messages) if not msg.hidden), None
     )
@@ -179,4 +181,5 @@ def get_consolidation_window_and_index(conversation: Conversation):
         total_words_in_window += non_hidden_messages[split_index].num_words
 
     consolidate_window = non_hidden_messages[:split_index]
-    return consolidate_window, start_index
+    end_index = start_index + len(consolidate_window)
+    return consolidate_window, end_index
