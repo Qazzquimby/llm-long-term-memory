@@ -90,11 +90,7 @@ class ContextItem(Base):
         back_populates="context_item", cascade="all, delete-orphan"
     )
 
-    __table_args__ = (
-        CheckConstraint(
-            "importance >= 0 AND importance <= 10 AND salience >= 0 AND salience <= 10"
-        ),
-    )
+    __table_args__ = (CheckConstraint("importance >= 0 AND importance <= 5"),)
 
     retired_by: Mapped[int] = mapped_column(
         ForeignKey("context_items.id"), nullable=True
