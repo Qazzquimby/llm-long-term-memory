@@ -86,13 +86,13 @@ class Conversation:
         self,
         messages=None,
         add_message_callback=None,
-        result_type: Type[BaseModel] = None,
+        response_model: Type[BaseModel] = None,
     ):
         if messages is None:
             messages = []
         self.messages: list[ChatMessage] = messages
         self.add_message_callback = add_message_callback
-        self.result_type = result_type
+        self.result_type = response_model
 
     def add_message(self, message: ChatMessage, prepend=False):
         if prepend:
@@ -121,7 +121,7 @@ class Conversation:
         #     for msg in message_to_show:
         #         print(msg)
         #     response_text = input("Enter your response: ")
-        #     result = None
+        #     response = None
         # else:
         llm_friendly_messages = [
             message.to_llm_friendly() for message in message_to_show
@@ -130,12 +130,12 @@ class Conversation:
         if active_result_type is None:
             active_result_type = str
 
-        result = await self.call_llm(
+        response = await self.call_llm(
             model=model,
             result_type=active_result_type,
             message_history=message_to_show,
         )
-        response_text = str(result.data)
+        response_text = response.data.model_dump_json(indent=2)
 
         self.add_message(ChatMessage(content=response_text, role=Role.ASSISTANT))
         if should_print:
@@ -145,7 +145,7 @@ class Conversation:
             if message.ephemeral:
                 message.hidden = True
 
-        return result.data
+        return response.data
 
     async def call_llm(
         self,

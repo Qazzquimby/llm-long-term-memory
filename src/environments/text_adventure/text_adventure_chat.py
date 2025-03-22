@@ -1,8 +1,17 @@
-from typing import Optional, List
+from typing import Optional
+
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from src.chat_loop import ChatLoop
 from src.environments.text_adventure.text_adventure import AnchorheadGame
-from sqlalchemy.orm import Session
+
+
+class TextAdventureResponseModel(BaseModel):
+    thinking: str = Field(description="Think things through before moving on.")
+    command: str = Field(
+        description="The verbatim command that will be input to the game."
+    )
 
 
 class TextAdventureChatLoop(ChatLoop):
@@ -13,17 +22,21 @@ class TextAdventureChatLoop(ChatLoop):
         headless=True,
         human_observer=True,
     ):
-        super().__init__(session=session, previous_messages=previous_messages)
+        super().__init__(
+            session=session,
+            previous_messages=previous_messages,
+            response_model=TextAdventureResponseModel,
+        )
         self.game = AnchorheadGame(headless=headless)
         self.human_observer = human_observer
 
     async def get_environment_input(self, llm_message: Optional[str] = None) -> str:
         if not self.game.driver:
-            # manually incuding first two screens to avoid handling 'anykey' presses.
+            # manually including first screens to avoid handling 'anykey' presses.
             start_prompt = """\
 You are playing the classic text adventure Anchorhead!
+You're not being an assistant, just playing a game and hopefully having a good time.
 Respond with commands, and see if you can win.
-Think things through, then put your input to the game on the final line of your responses.
 \n\n
                              The oldest and strongest emotion of mankind                                
                              is fear, and the oldest and strongest kind                                 
@@ -65,11 +78,13 @@ Anchorhead...
             game_start_text = await self.game.start()
             return start_prompt + game_start_text
         else:
-            llm_command = self._extract_command(llm_message)
-            game_response = await self.game.send_command(llm_command)
+            llm_response_obj = TextAdventureResponseModel.model_validate_json(
+                llm_message
+            )
+            game_response = await self.game.send_command(llm_response_obj.command)
 
             if self.human_observer:
-                print(f"\nGame Response:\n{game_response}")
+                print(f"\n\nGame Response:\n{game_response}\n\n")
 
             return game_response
 

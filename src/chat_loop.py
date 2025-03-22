@@ -12,8 +12,9 @@ MAX_CONVERSATION_LENGTH = 1000  # preventing infinite loops
 
 
 class ChatLoop(ABC):
-    def __init__(self, session: Session, previous_messages=None):
+    def __init__(self, session: Session, previous_messages=None, response_model=None):
         self.session = session
+        self.response_model = response_model
 
         def save_message(message: ChatMessage):
             if message.ephemeral:
@@ -27,7 +28,9 @@ class ChatLoop(ABC):
         if previous_messages is None:
             previous_messages = []
         self.conversation = Conversation(
-            messages=previous_messages, add_message_callback=save_message
+            messages=previous_messages,
+            add_message_callback=save_message,
+            response_model=response_model,
         )
 
     async def run(self):
