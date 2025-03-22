@@ -1,10 +1,12 @@
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
 from src.chat_loop import ChatLoop
 from src.environments.text_adventure.text_adventure import AnchorheadGame
+from src.db import Message, MessageSummary, Role
 
 
 class TextAdventureResponseModel(BaseModel):
@@ -18,13 +20,11 @@ class TextAdventureChatLoop(ChatLoop):
     def __init__(
         self,
         session: Session,
-        previous_messages=None,
         headless=True,
         human_observer=True,
     ):
         super().__init__(
             session=session,
-            previous_messages=previous_messages,
             response_model=TextAdventureResponseModel,
         )
         self.game = AnchorheadGame(headless=headless)
@@ -75,7 +75,8 @@ Anchorhead...
 \n\n
 
 """
-            game_start_text = await self.game.start()
+            setup_commands = self.extract_commands_from_db()
+            game_start_text = await self.game.start(setup_commands=setup_commands)
             return start_prompt + game_start_text
         else:
             llm_response_obj = TextAdventureResponseModel.model_validate_json(
@@ -94,3 +95,37 @@ Anchorhead...
             return llm_response.split("\n")[-1].strip()
         except IndexError:
             return ""
+
+    def extract_commands_from_db(self) -> List[str]:
+        """Extract all game commands from the database messages"""
+        commands = []  # todo pretty sure this is duplicate.
+
+        # Get the last message summary index if any
+        last_summary = (
+            self.session.query(MessageSummary)
+            .order_by(desc(MessageSummary.created_at_message_index))
+            .first()
+        )
+        last_summary_index = (
+            last_summary.created_at_message_index if last_summary else -1
+        )
+
+        # Get all assistant messages
+        messages = (
+            self.session.query(Message).filter(Message.sender == Role.ASSISTANT).all()
+        )
+
+        for message in messages:
+            try:
+                # Try to parse the message as a TextAdventureResponseModel
+                response_obj = TextAdventureResponseModel.model_validate_json(
+                    message.body
+                )
+                commands.append(response_obj.command)
+            except Exception:
+                # If parsing fails, try to extract the command from the last line
+                command = self._extract_command(message.body)
+                if command:
+                    commands.append(command)
+
+        return commands

@@ -9,7 +9,6 @@ async def main():
     with SessionLocal() as session:
         chat_loop = TextAdventureChatLoop(
             session=session,
-            previous_messages=None,
             headless=False,
             human_observer=True,
         )

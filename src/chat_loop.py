@@ -8,13 +8,32 @@ from sqlalchemy.orm import Session
 from prompt_toolkit import PromptSession
 from typing import List, Optional
 
+from src.db import MessageSummary
+from sqlalchemy import desc
+
 MAX_CONVERSATION_LENGTH = 1000  # preventing infinite loops
 
 
+def load_messages_from_db(session):
+    """Load all messages from the database into ChatMessage objects"""
+    db_messages = session.query(Message).order_by(Message.id).all()
+    chat_messages = []
+
+    for msg in db_messages:
+        # todo role = msg.sender?
+        role = Role.USER if msg.sender == Role.USER else Role.ASSISTANT
+        chat_message = ChatMessage(content=msg.body, role=role)
+        chat_messages.append(chat_message)
+
+    return chat_messages
+
+
 class ChatLoop(ABC):
-    def __init__(self, session: Session, previous_messages=None, response_model=None):
+    def __init__(self, session: Session, response_model=None):
         self.session = session
         self.response_model = response_model
+
+        previous_messages = load_messages_from_db(session)
 
         def save_message(message: ChatMessage):
             if message.ephemeral:
@@ -25,13 +44,13 @@ class ChatLoop(ABC):
         if previous_messages is None:
             previous_messages = []
 
-        if previous_messages is None:
-            previous_messages = []
         self.conversation = Conversation(
             messages=previous_messages,
             add_message_callback=save_message,
             response_model=response_model,
         )
+
+        self._hide_messages_before_last_summary()
 
     async def run(self):
         for _ in range(MAX_CONVERSATION_LENGTH):
@@ -78,6 +97,20 @@ class ChatLoop(ABC):
             return self.conversation.messages[-1].content
         except IndexError:
             return ""
+
+    def _hide_messages_before_last_summary(self):
+        last_summary = (
+            self.session.query(MessageSummary)
+            .order_by(desc(MessageSummary.created_at_message_index))
+            .first()
+        )
+
+        if last_summary:
+            last_index = last_summary.created_at_message_index
+
+            for i, message in enumerate(self.conversation.messages):
+                if i <= last_index:
+                    message.hidden = True
 
 
 class HumanChatLoop(ChatLoop):

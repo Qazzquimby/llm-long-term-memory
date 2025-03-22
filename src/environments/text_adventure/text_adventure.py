@@ -13,6 +13,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 import difflib
 
+from tqdm import tqdm
+
 
 @dataclass
 class ScreenState:
@@ -98,7 +100,8 @@ class AnchorheadGame:
         await self.send_command("", get_response=True)  # pass start of day 1
 
         if setup_commands is not None:
-            for cmd in setup_commands:
+            print(f"Replaying {len(setup_commands)} commands...")
+            for cmd in tqdm(setup_commands):
                 await self.send_command(cmd)
 
         return str(self.last_screen_state)
@@ -115,7 +118,7 @@ class AnchorheadGame:
             added_content = None
             updated_state = None
             for attempt in range(10):
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.2)
                 updated_state = await self.get_screen_state()
                 added_content = self.last_screen_state.get_added_content(updated_state)
                 if added_content:
