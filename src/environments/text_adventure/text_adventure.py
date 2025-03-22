@@ -99,7 +99,7 @@ class AnchorheadGame:
         await self.send_command("", get_response=False)  # pass intro screen
         await self.send_command("", get_response=True)  # pass start of day 1
 
-        if setup_commands is not None:
+        if setup_commands:
             print(f"Replaying {len(setup_commands)} commands...")
             for cmd in tqdm(setup_commands):
                 await self.send_command(cmd)
