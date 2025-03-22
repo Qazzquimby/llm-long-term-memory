@@ -83,10 +83,11 @@ async def consolidate(session: Session, conversation: Conversation):
     consolidation_window, end_index = get_consolidation_window_and_end_index(
         conversation
     )
-    consolidator_context = await get_consolidator_context(consolidation_window)
+    consolidator_context = await get_consolidator_context(
+        session=session, consolidation_window=consolidation_window
+    )
     for message in consolidation_window:
         message.hidden = True
-    # todo get consolidator context from context.py
     recent_messages = []
     for message in consolidation_window:
         if message.role == Role.ASSISTANT:
@@ -125,7 +126,6 @@ For simplicity, speak in first person, where your character is "I". Out of chara
         new_fact = Fact(
             body=fact_data.body,
             importance=importance_string_to_value.get(fact_data.importance),
-            # salience=fact_data.salience,
             created_at_message_index=end_index,
         )
         session.add(new_fact)

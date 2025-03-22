@@ -112,17 +112,22 @@ def get_assistant_context(session: Session) -> AssistantContext:
     return context
 
 
-class ConsolidatorContext(BaseModel):
-    past_message_summaries: List[MessageSummaryModel]
-    entities: List[EntityModel]
-    facts: List[FactModel]
+class ConsolidatorContext:
+    def __init__(self, session: Session):
+        self.message_summaries = session.query(MessageSummary).all()
+
+        self.entities = session.query(Entity).all()
+
+        self.facts = session.query(Fact).all()
+
+        return
 
     def __str__(self):
         parts = []
-        if self.past_message_summaries:
+        if self.message_summaries:
             parts.append("SUMMARIES OF PAST MESSAGES:")
             parts.append(
-                "\n\n".join([str(summary) for summary in self.past_message_summaries])
+                "\n\n".join([str(summary) for summary in self.message_summaries])
             )
 
         if self.entities:
@@ -143,12 +148,7 @@ class ConsolidatorContext(BaseModel):
 
 
 async def get_consolidator_context(
+    session: Session,
     consolidation_window: List[ChatMessage],
 ) -> ConsolidatorContext:
-
-    context_summaries = []  # todo use db
-    entities = []
-    facts = []
-    return ConsolidatorContext(
-        past_message_summaries=context_summaries, entities=entities, facts=facts
-    )
+    return ConsolidatorContext(session=session)
