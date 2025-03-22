@@ -189,14 +189,15 @@ class EntityAlias(Base):
 
 
 def get_entity_by_name(session, entity_name: str) -> Optional[Entity]:
-    alias_row = (
-        session.query(EntityAlias)
-        .filter(EntityAlias.alias == entity_name)
-        .one_or_none()
+    alias_rows = (
+        session.query(EntityAlias).filter(EntityAlias.alias == entity_name).all()
     )
-    if not alias_row:
+    if not alias_rows:
         print("WARN: entity alias not found: ", entity_name)
         return None
+    if len(alias_rows) > 1:
+        print("WARN: entity alias not unique: ", entity_name)
+    alias_row = alias_rows[0]
     return alias_row.entity
 
 
