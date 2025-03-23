@@ -119,6 +119,8 @@ class ConsolidatorContext:
         self.entities = session.query(Entity).all()
 
         self.facts = session.query(Fact).all()
+        # todo these will be int importances
+        # need dedicated saving and loading
 
         return
 
