@@ -77,7 +77,10 @@ Anchorhead...
 """
             setup_commands = self.extract_commands_from_db()
             game_start_text = await self.game.start(setup_commands=setup_commands)
-            return start_prompt + game_start_text
+            if setup_commands:
+                return game_start_text  # todo may possibly replay last observation.
+            else:
+                return start_prompt + game_start_text
         else:
             llm_response_obj = TextAdventureResponseModel.model_validate_json(
                 llm_message
