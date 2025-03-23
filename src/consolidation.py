@@ -111,6 +111,7 @@ It's time to update and maintain your memory system based off of recent events.
 For simplicity, speak in first person, where your character is "I". Out of character text can be written OOC: ...
 """
     result = await consolidator_agent.run(prompt)
+    result.data: ConsolidateResult
 
     # update db
 
@@ -122,7 +123,7 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     session.commit()
 
     new_facts = []
-    for fact_data in result.data.new_facts:  # todo data is type any
+    for fact_data in result.data.new_facts:
         new_fact = Fact(
             body=fact_data.body,
             importance=importance_string_to_value.get(fact_data.importance),
@@ -145,8 +146,7 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     ]
 
     new_message_summary = MessageSummary(
-        # TODO created at message index
-        importance=result.data.summary.importance,
+        importance=importance_string_to_value.get(result.data.summary.importance),
         body=result.data.summary.body,
         facts=new_facts,
         entities=entities_in_scene,
