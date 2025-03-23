@@ -17,14 +17,9 @@ MAX_CONVERSATION_LENGTH = 1000  # preventing infinite loops
 def load_messages_from_db(session):
     """Load all messages from the database into ChatMessage objects"""
     db_messages = session.query(Message).order_by(Message.id).all()
-    chat_messages = []
-
-    for msg in db_messages:
-        # todo role = msg.sender?
-        role = Role.USER if msg.sender == Role.USER else Role.ASSISTANT
-        chat_message = ChatMessage(content=msg.body, role=role)
-        chat_messages.append(chat_message)
-
+    chat_messages = [
+        ChatMessage(content=msg.body, role=msg.sender) for msg in db_messages
+    ]
     return chat_messages
 
 
