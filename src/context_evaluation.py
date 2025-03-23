@@ -47,7 +47,7 @@ async def evaluate_context(
     conversation: Conversation,
 ):
     new_message = conversation.messages[-1]
-    if not (context.facts or context.entities or context.message_summaries):
+    if not (context.facts or context.message_summaries):
         return
 
     context_items_by_id = {}
@@ -112,7 +112,11 @@ Please evaluate how useful each piece of context was for generating your respons
 
     debugging_string_parts = []
     for evaluation in result.data.evaluations:
-        item = context_items_by_id[evaluation.id]
+        try:
+            item = context_items_by_id[evaluation.id]
+        except KeyError:
+            print("WARN: Context item not found: ", evaluation.id)
+            pass
         debugging_string_parts.append(f"{evaluation.usefulness}: {item}")
     debugging_string = "\n".join(debugging_string_parts)
 
