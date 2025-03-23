@@ -2,11 +2,11 @@ from typing import Optional, List
 
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
 
 from src.chat_loop import ChatLoop
 from src.environments.text_adventure.text_adventure import AnchorheadGame
-from src.db import Message, MessageSummary, Role
+from src.db import Role
+from src.conversation import ChatMessage
 
 
 class TextAdventureResponseModel(BaseModel):
@@ -92,9 +92,10 @@ Anchorhead...
     def extract_commands_from_db(self) -> List[str]:
         commands = []
         for message in self.conversation.messages:
-            if message.sender == Role.ASSISTANT:
+            message: ChatMessage  # needed for some reason for hinting
+            if message.role == Role.ASSISTANT:
                 response_obj = TextAdventureResponseModel.model_validate_json(
-                    message.body
+                    message.content
                 )
                 commands.append(response_obj.command)
         return commands
