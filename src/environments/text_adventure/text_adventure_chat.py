@@ -11,8 +11,8 @@ from src.conversation import ChatMessage
 
 class TextAdventureResponseModel(BaseModel):
     thinking: str = Field(description="Think things through before moving on.")
-    command: str = Field(
-        description="The verbatim command that will be input to the game."
+    commands: List[str] = Field(
+        description="List of verbatim commands that will be input to the game. You should usually send only one, unless you have good reason, since you won't see the response until after all commands have been input."
     )
 
 
@@ -85,7 +85,7 @@ Anchorhead...
             llm_response_obj = TextAdventureResponseModel.model_validate_json(
                 llm_message
             )
-            game_response = await self.game.send_command(llm_response_obj.command)
+            game_response = await self.game.send_commands(llm_response_obj.commands)
 
             if self.human_observer:
                 print(f"\n\nGame Response:\n{game_response}\n\n")
@@ -100,5 +100,5 @@ Anchorhead...
                 response_obj = TextAdventureResponseModel.model_validate_json(
                     message.content
                 )
-                commands.append(response_obj.command)
+                commands.append(response_obj.commands)
         return commands

@@ -98,45 +98,50 @@ class AnchorheadGame:
         await asyncio.sleep(1)
         self.last_screen_state = await self.get_screen_state()
 
-        await self.send_command("", get_response=False)  # pass title screen
-        await self.send_command("", get_response=False)  # pass intro screen
-        await self.send_command("", get_response=True)  # pass start of day 1
+        await self.send_commands([""], get_response=False)  # pass title screen
+        await self.send_commands([""], get_response=False)  # pass intro screen
+        await self.send_commands([""], get_response=True)  # pass start of day 1
 
         if setup_commands:
             print(f"Replaying {len(setup_commands)} commands...")
             added_content = None
             for cmd in tqdm(setup_commands):
-                added_content = await self.send_command(cmd)
+                added_content = await self.send_commands([cmd])
             return str(added_content)
         else:
             return str(self.last_screen_state)
 
-    async def send_command(self, command, get_response=True) -> str:
+    async def send_commands(self, commands: List[str], get_response=True) -> str:
         if not self.driver:
             raise RuntimeError("Game not started. Call start() first.")
 
         # todo doesn't cleanly handle new day "anykeys" or arrowscreen movement.
         #  its also possible menus aren't properly displayed to the llm
 
-        self.actions.send_keys(command).perform()
-        self.actions.send_keys(Keys.RETURN).perform()
+        for command_i, command in enumerate(commands):
 
-        if get_response:
-            added_content = None
-            updated_state = None
-            for attempt in range(10):
-                await asyncio.sleep(0.2)
-                updated_state = await self.get_screen_state()
-                added_content = self.last_screen_state.get_added_content(updated_state)
+            self.actions.send_keys(command).perform()
+            self.actions.send_keys(Keys.RETURN).perform()
+            await asyncio.sleep(0.2)
+
+            if get_response and command_i == len(commands) - 1:
+                added_content = None
+                updated_state = None
+                for attempt in range(10):
+                    updated_state = await self.get_screen_state()
+                    added_content = self.last_screen_state.get_added_content(
+                        updated_state
+                    )
+                    if added_content:
+                        break
+                    await asyncio.sleep(0.2)
+
+                self.last_screen_state = updated_state
                 if added_content:
-                    break
-
-            self.last_screen_state = updated_state
-            if added_content:
-                return added_content
-            else:
-                print("WARN: No change after inputting command:", command)
-                return str(updated_state)
+                    return added_content
+                else:
+                    print("WARN: No change after inputting command:", command)
+                    return str(updated_state)
 
     def _did_unexpected_screen_change(self, updated_state: ScreenState, command: str):
         if self.last_screen_state is None:
@@ -195,7 +200,7 @@ async def play_interactive():
             if command.lower() in ["quit", "exit"]:
                 break
 
-            response = await game.send_command(command)
+            response = await game.send_commands([command])
             print(response)
 
     except KeyboardInterrupt:
