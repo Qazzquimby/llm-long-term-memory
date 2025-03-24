@@ -274,7 +274,9 @@ class Fact(ContextItem):
     # )
 
 
-def _get_engine(db_url="sqlite:///memory.db"):
+def _get_engine(db_url=None):
+    if db_url is None:
+        db_url = "sqlite:///memory.db"
     return create_engine(db_url)
 
 
@@ -289,8 +291,8 @@ def _get_sessionmaker(engine=None):
 #     ...
 
 
-def get_db_factory():
-    engine = _get_engine()
+def get_db_factory(db_url="sqlite:///memory.db"):
+    engine = _get_engine(db_url=db_url)
     # Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     SessionLocal = _get_sessionmaker()
