@@ -61,6 +61,8 @@ class ConsolidateResult(BaseModel):
     )
 
 
+# todo consider using r1 or layered approach here.
+#   It doesn't need to answer quickly and has a harder job.
 consolidator_agent = Agent(
     model=OpenAIModel(
         MODEL.replace("openrouter/", ""),
