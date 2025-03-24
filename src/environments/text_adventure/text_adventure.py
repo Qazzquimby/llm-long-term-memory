@@ -203,3 +203,8 @@ async def play_interactive():
 
 if __name__ == "__main__":
     asyncio.run(play_interactive())
+
+
+# todo track last milestone.
+#  have dict of next milestone -> hint
+#  if spends long time before reaching next milestone, provide hint and reset counter.
