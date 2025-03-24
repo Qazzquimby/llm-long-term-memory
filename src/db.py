@@ -187,6 +187,7 @@ class EntityAlias(Base):
 
 
 def get_entity_by_name(session, entity_name: str) -> Optional[Entity]:
+    # todo prefer earlier alias for tie breaking? First alias is more likely canon.
     alias_rows = (
         session.query(EntityAlias).filter(EntityAlias.alias == entity_name).all()
     )

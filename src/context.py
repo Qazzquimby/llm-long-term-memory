@@ -11,9 +11,10 @@ from db import (
 from src.conversation import ChatMessage
 
 
+# todo prevent multiple entities with same primary alias?
 class EntityModel(BaseModel):
     aliases: List[str] = Field(
-        description="Names for the entity. Make the first one the most clear and canonical, as it will be used by default."
+        description="1 or more names for the entity. Make the first one the most clear and canonical, as it will be used by default."
     )
     brief: str = Field(
         description="1-2 sentence summary of the entity and your relationship with it."
