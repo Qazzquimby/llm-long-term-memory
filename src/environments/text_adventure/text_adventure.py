@@ -115,6 +115,9 @@ class AnchorheadGame:
         if not self.driver:
             raise RuntimeError("Game not started. Call start() first.")
 
+        # todo doesn't cleanly handle new day "anykeys" or arrowscreen movement.
+        #  its also possible menus aren't properly displayed to the llm
+
         self.actions.send_keys(command).perform()
         self.actions.send_keys(Keys.RETURN).perform()
 
