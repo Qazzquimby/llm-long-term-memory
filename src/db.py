@@ -121,6 +121,8 @@ class Message(Base):
     summary_id: Mapped[int] = mapped_column(
         ForeignKey("message_summaries.id"), nullable=True
     )
+    # todo add prompt parts. List of PromptPart(type, body). Will use to track costs.
+    # Later go by char count, dont bother with tiktoken.
 
     summary: Mapped["MessageSummary"] = relationship(back_populates="messages")
 
