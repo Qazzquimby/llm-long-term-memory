@@ -114,10 +114,10 @@ Please evaluate how useful each piece of context was for generating your respons
     for evaluation in result.data.evaluations:
         try:
             item = context_items_by_id[evaluation.id]
+            debugging_string_parts.append(f"{evaluation.usefulness}: {item}")
         except KeyError:
             print("WARN: Context item not found: ", evaluation.id)
             pass
-        debugging_string_parts.append(f"{evaluation.usefulness}: {item}")
     debugging_string = "\n".join(debugging_string_parts)
 
     message_index = len(conversation.messages)

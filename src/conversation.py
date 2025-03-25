@@ -40,6 +40,7 @@ def get_api_key(key_name):
 sonnet_37 = "openrouter/anthropic/claude-3.7-sonnet"
 r1 = "openrouter/deepseek/deepseek-r1"
 v3 = "openrouter/deepseek/deepseek-chat-v3-0324"
+gpt_4o_mini = "openrouter/openai/gpt-4o-mini"
 OPENROUTER_API_KEY = get_api_key("OPENROUTER_API_KEY")
 
 

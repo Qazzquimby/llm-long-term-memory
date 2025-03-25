@@ -1,18 +1,24 @@
 from typing import List
 
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from sqlalchemy.orm import Session
 
+from src.architect_formatter_agent import ArchitectFormatterAgent
 from src.context import (
     get_consolidator_context,
     EntityModel,
     FactModel,
     MessageSummaryModel,
 )
-from src.conversation import Conversation, Role, sonnet_37, OPENROUTER_API_KEY, r1
+from src.conversation import (
+    Conversation,
+    Role,
+    OPENROUTER_API_KEY,
+    r1,
+    gpt_4o_mini,
+)
 from src.db import (
     Entity,
     EntityAlias,
@@ -61,17 +67,22 @@ class ConsolidateResult(BaseModel):
     )
 
 
-# todo consider using r1 or layered approach here.
-#   It doesn't need to answer quickly and has a harder job.
-consolidator_agent = Agent(
-    model=OpenAIModel(
+consolidator_agent = ArchitectFormatterAgent(
+    architect_model=OpenAIModel(
         r1.replace("openrouter/", ""),
         provider=OpenAIProvider(
             base_url="https://openrouter.ai/api/v1",
             api_key=OPENROUTER_API_KEY,
         ),
     ),
-    result_type=ConsolidateResult,
+    formatter_model=OpenAIModel(
+        gpt_4o_mini.replace("openrouter/", ""),
+        provider=OpenAIProvider(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=OPENROUTER_API_KEY,
+        ),
+    ),
+    response_type=ConsolidateResult,
 )
 
 
@@ -82,6 +93,7 @@ def should_consolidate(conversation: Conversation):
 
 
 async def consolidate(session: Session, conversation: Conversation):
+    print("CONSOLIDATING")
     consolidation_window, end_index = get_consolidation_window_and_end_index(
         conversation
     )
