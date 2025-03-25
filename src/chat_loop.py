@@ -33,7 +33,41 @@ class ChatLoop(ABC):
         def save_message(message: ChatMessage):
             if message.ephemeral:
                 return
-            session.add(Message(body=message.content, sender=message.role))
+
+            if message.role == Role.USER:
+                visible_chat_history = [
+                    msg for msg in self.conversation.messages if not msg.hidden
+                ]
+                chat_history_length = sum(
+                    [len(msg.content) for msg in visible_chat_history]
+                )
+
+                context = next(
+                    (
+                        msg
+                        for msg in self.conversation.messages
+                        if msg.role != Role.ASSISTANT and msg.ephemeral
+                    ),
+                    None,
+                )
+                if context:
+                    print("todo")
+                    # todo break apart the context message to get section lengths
+
+                part_lengths = {
+                    "chat_history": chat_history_length,
+                    "facts": -1,
+                    "summaries": -1,
+                    "entities": -1,
+                }
+            else:
+                part_lengths = None
+
+            session.add(
+                Message(
+                    body=message.content, sender=message.role, part_lengths=part_lengths
+                )
+            )
 
             # warn against exact duplicate message
             duplicate_message = (
@@ -117,10 +151,8 @@ class ChatLoop(ABC):
 
 
 class HumanChatLoop(ChatLoop):
-    def __init__(
-        self, session: Session, previous_messages: Optional[List[ChatMessage]] = None
-    ):
-        super().__init__(session=session, previous_messages=previous_messages)
+    def __init__(self, session: Session):
+        super().__init__(session=session, response_model=ChatMessage)
 
         self.prompt_session = PromptSession(message="You: ")
 
@@ -128,6 +160,6 @@ class HumanChatLoop(ChatLoop):
         return await self.prompt_session.prompt_async()
 
 
-async def conversation_loop(session: Session, previous_messages=None):
-    chat_loop = HumanChatLoop(session=session, previous_messages=previous_messages)
+async def conversation_loop(session: Session):
+    chat_loop = HumanChatLoop(session=session)
     await chat_loop.run()

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from sqlalchemy import (
     create_engine,
@@ -10,6 +10,7 @@ from sqlalchemy import (
     Enum,
     CheckConstraint,
     Integer,
+    JSON,
 )
 from sqlalchemy.orm import (
     declarative_base,
@@ -121,8 +122,13 @@ class Message(Base):
     summary_id: Mapped[int] = mapped_column(
         ForeignKey("message_summaries.id"), nullable=True
     )
-    # todo add prompt parts. List of PromptPart(type, body). Will use to track costs.
-    # Later go by char count, dont bother with tiktoken.
+    part_lengths: Mapped[Optional[Dict]] = mapped_column(JSON, nullable=True)
+    # JSON structure: {
+    #   "chat_history": int,  # characters in chat history
+    #   "facts": int,         # characters in facts
+    #   "summaries": int,     # characters in summaries
+    #   "entities": int,      # characters in entities
+    # }
 
     summary: Mapped["MessageSummary"] = relationship(back_populates="messages")
 
