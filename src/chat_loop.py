@@ -1,4 +1,7 @@
 from abc import ABC, abstractmethod
+
+from markdown_it.common.entities import entities
+
 from src.consolidation import should_consolidate, consolidate
 from src.context import get_assistant_context
 from src.context_evaluation import evaluate_context
@@ -50,24 +53,34 @@ class ChatLoop(ABC):
                     ),
                     None,
                 )
+                entities_length = 0
+                facts_length = 0
+                summaries_length = 0
                 if context:
-                    print("todo")
-                    # todo break apart the context message to get section lengths
+                    try:
+                        context_str = context.content
+                        entities_length = (len(context_str.split("Facts:")[0]),)
+                        facts_length = (
+                            len(
+                                context_str.split("Facts:")[1].split(
+                                    "## Conversation Summary:"
+                                )[0]
+                            ),
+                        )
+                        summaries_length = len(
+                            context_str.split("## Conversation Summary:")[1]
+                        )
+                    except IndexError:
+                        print("WARN: unable to parse context sizes")
 
                 part_lengths = {
                     "chat_history": chat_history_length,
-                    "facts": -1,
-                    "summaries": -1,
-                    "entities": -1,
+                    "facts": facts_length,
+                    "summaries": summaries_length,
+                    "entities": entities_length,
                 }
             else:
                 part_lengths = None
-
-            session.add(
-                Message(
-                    body=message.content, sender=message.role, part_lengths=part_lengths
-                )
-            )
 
             # warn against exact duplicate message
             duplicate_message = (
@@ -76,6 +89,11 @@ class ChatLoop(ABC):
             if duplicate_message:
                 print("WARN: Duplicate message found.")
 
+            session.add(
+                Message(
+                    body=message.content, sender=message.role, part_lengths=part_lengths
+                )
+            )
             session.commit()
 
         if previous_messages is None:
