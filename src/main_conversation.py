@@ -4,7 +4,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from src.chat_loop import conversation_loop
 
-from src.conversation import MODEL, OPENROUTER_API_KEY
+from src.conversation import sonnet_37, OPENROUTER_API_KEY
 from src.db import get_db_factory
 
 
@@ -16,7 +16,7 @@ async def main():
 
 def little_main():
     model = OpenAIModel(
-        MODEL.replace("openrouter/", ""),
+        sonnet_37.replace("openrouter/", ""),
         provider=OpenAIProvider(
             base_url="https://openrouter.ai/api/v1",
             api_key=OPENROUTER_API_KEY,

@@ -12,7 +12,7 @@ from src.context import (
     FactModel,
     MessageSummaryModel,
 )
-from src.conversation import Conversation, Role, MODEL, OPENROUTER_API_KEY
+from src.conversation import Conversation, Role, sonnet_37, OPENROUTER_API_KEY, r1
 from src.db import (
     Entity,
     EntityAlias,
@@ -65,7 +65,7 @@ class ConsolidateResult(BaseModel):
 #   It doesn't need to answer quickly and has a harder job.
 consolidator_agent = Agent(
     model=OpenAIModel(
-        MODEL.replace("openrouter/", ""),
+        r1.replace("openrouter/", ""),
         provider=OpenAIProvider(
             base_url="https://openrouter.ai/api/v1",
             api_key=OPENROUTER_API_KEY,
@@ -88,8 +88,6 @@ async def consolidate(session: Session, conversation: Conversation):
     consolidator_context = await get_consolidator_context(
         session=session, consolidation_window=consolidation_window
     )
-    for message in consolidation_window:
-        message.hidden = True
     recent_messages = []
     for message in consolidation_window:
         if message.role == Role.ASSISTANT:
@@ -161,6 +159,10 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     session.add(new_message_summary)
 
     session.commit()
+
+    # do this last so that the chat loop still sees the messages while consolidating
+    for message in consolidation_window:
+        message.hidden = True
     return
 
 

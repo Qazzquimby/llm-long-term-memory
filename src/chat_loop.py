@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC, abstractmethod
 
 from markdown_it.common.entities import entities
@@ -5,7 +6,7 @@ from markdown_it.common.entities import entities
 from src.consolidation import should_consolidate, consolidate
 from src.context import get_assistant_context
 from src.context_evaluation import evaluate_context
-from src.conversation import Conversation, ChatMessage, MODEL, Role
+from src.conversation import Conversation, ChatMessage, sonnet_37, Role
 from src.db import Message
 from sqlalchemy.orm import Session
 from prompt_toolkit import PromptSession
@@ -117,7 +118,9 @@ class ChatLoop(ABC):
             await self.process_response(environment_input=environment_input)
 
             if should_consolidate(self.conversation):
-                await consolidate(session=self.session, conversation=self.conversation)
+                asyncio.create_task(
+                    consolidate(session=self.session, conversation=self.conversation)
+                )
 
     @abstractmethod
     async def get_environment_input(self, llm_message=Optional[str]) -> str:
@@ -138,13 +141,14 @@ class ChatLoop(ABC):
                 prepend=True,
             )
 
-        await self.conversation.run(MODEL)
+        await self.conversation.run(sonnet_37)
 
-        # todo this doesn't need to be awaited in real use I think.
-        await evaluate_context(
-            session=self.session,
-            context=context,
-            conversation=self.conversation,
+        asyncio.create_task(
+            evaluate_context(
+                session=self.session,
+                context=context,
+                conversation=self.conversation,
+            )
         )
 
     def _get_last_message(self):

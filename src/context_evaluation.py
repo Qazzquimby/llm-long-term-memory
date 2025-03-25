@@ -7,7 +7,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from sqlalchemy.orm import Session
 
 from src.context import AssistantContext
-from src.conversation import MODEL, OPENROUTER_API_KEY, Conversation, Role
+from src.conversation import sonnet_37, OPENROUTER_API_KEY, Conversation, Role, v3
 from src.db import UsageRecord
 
 
@@ -31,7 +31,7 @@ class ContextEvaluationResult(BaseModel):
 
 context_evaluator_agent = Agent(
     model=OpenAIModel(
-        MODEL.replace("openrouter/", ""),
+        v3.replace("openrouter/", ""),
         provider=OpenAIProvider(
             base_url="https://openrouter.ai/api/v1",
             api_key=OPENROUTER_API_KEY,
