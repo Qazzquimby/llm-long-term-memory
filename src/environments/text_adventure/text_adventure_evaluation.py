@@ -10,29 +10,47 @@ from src.db import get_db_factory, Message, Role
 
 
 @dataclass
+class Metric:
+    name: str
+    display_name: str
+    value: int = 0
+
+
+@dataclass
 class MessageMetrics:
     message_id: int
     message_index: int
     content: str
-    exploration_score: int = 0
-    puzzle_score: int = 0
-    story_progress: int = 0
+    metrics: List[Metric] = None
+
+    def __post_init__(self):
+        if self.metrics is None:
+            self.metrics = [
+                Metric(name="new_lines", display_name="New Response Lines"),
+                Metric(name="score", display_name="Score"),
+            ]
 
     def as_dict(self):
-        return {
+        result = {
             "message_id": self.message_id,
             "message_index": self.message_index,
-            "exploration_score": self.exploration_score,
-            "puzzle_score": self.puzzle_score,
-            "story_progress": self.story_progress,
         }
+        for metric in self.metrics:
+            result[metric.name] = metric.value
+        return result
+
+    def get_metric(self, name):
+        for metric in self.metrics:
+            if metric.name == name:
+                return metric
+        return None
 
 
 class GameAnalyzer:
     def __init__(self, session: Session, run_name: str = "default"):
         self.session = session
         self.env_messages = []
-        self.metrics_timeline = []
+        self.metrics_timeline: List[MessageMetrics] = []
         self.run_name = run_name
 
     def load_messages(self):
@@ -47,37 +65,40 @@ class GameAnalyzer:
         return self.metrics_timeline
 
     def analyze_progress(self):
-        exploration = 0
-        puzzle_score = 0
+        num_new_lines = 0
+        score = 0
 
-        for metric in self.metrics_timeline:
-            if metric.message_index % 3 == 0:
-                exploration += 1
+        previous_messages = []
+        previous_lines = set()
+        for state_metrics in self.metrics_timeline:
+            lines = [line.strip() for line in state_metrics.content.split("\n")]
+            new_lines = [line for line in lines if line not in previous_lines]
+            num_new_lines += len(new_lines)
 
-            if metric.message_index % 5 == 0 and metric.message_index > 0:
-                puzzle_score += 5
+            if "score has just gone up" in state_metrics.content:
+                score += 1
 
-            story_progress = min(100, int(metric.message_index * 1.5))
+            state_metrics.get_metric("new_lines").value = num_new_lines
+            state_metrics.get_metric("score").value = score
 
-            metric.exploration_score = exploration
-            metric.puzzle_score = puzzle_score
-            metric.story_progress = story_progress
+            previous_messages.append(state_metrics.content)
+            previous_lines.update(lines)
 
         return self.metrics_timeline
 
     def get_metrics_for_graphing(self):
         # Return data in a format suitable for graphing
         message_indices = [m.message_index for m in self.metrics_timeline]
-        exploration_scores = [m.exploration_score for m in self.metrics_timeline]
-        puzzle_scores = [m.puzzle_score for m in self.metrics_timeline]
-        story_progress = [m.story_progress for m in self.metrics_timeline]
+        result = {"message_indices": message_indices}
 
-        return {
-            "message_indices": message_indices,
-            "exploration_scores": exploration_scores,
-            "puzzle_scores": puzzle_scores,
-            "story_progress": story_progress,
-        }
+        # Get all metric names from the first message metrics object
+        if self.metrics_timeline:
+            for metric in self.metrics_timeline[0].metrics:
+                result[metric.name] = [
+                    m.get_metric(metric.name).value for m in self.metrics_timeline
+                ]
+
+        return result
 
     def create_plot_traces(self):
         if not self.metrics_timeline:
@@ -86,23 +107,18 @@ class GameAnalyzer:
         metrics_data = self.get_metrics_for_graphing()
         x = metrics_data["message_indices"]
 
-        return {
-            "exploration": {
-                "x": x,
-                "y": metrics_data["exploration_scores"],
-                "name": f"{self.run_name} - Exploration",
-            },
-            "puzzle": {
-                "x": x,
-                "y": metrics_data["puzzle_scores"],
-                "name": f"{self.run_name} - Puzzles",
-            },
-            "story": {
-                "x": x,
-                "y": metrics_data["story_progress"],
-                "name": f"{self.run_name} - Story",
-            },
-        }
+        traces = {}
+
+        # Create a trace for each metric
+        if self.metrics_timeline:
+            for metric in self.metrics_timeline[0].metrics:
+                traces[metric.name] = {
+                    "x": x,
+                    "y": metrics_data[metric.name],
+                    "name": f"{self.run_name} - {metric.display_name}",
+                }
+
+        return traces
 
 
 class MultiRunAnalyzer:
@@ -128,10 +144,17 @@ class MultiRunAnalyzer:
             print("No game runs to analyze")
             return
 
-        # Create figures for each metric type
-        exploration_fig = go.Figure()
-        puzzle_fig = go.Figure()
-        story_fig = go.Figure()
+        # Get metric names from the first analyzer
+        metric_names = []
+        if self.analyzers:
+            first_analyzer = next(iter(self.analyzers.values()))
+            if first_analyzer.metrics_timeline:
+                metric_names = [
+                    metric.name for metric in first_analyzer.metrics_timeline[0].metrics
+                ]
+
+        # Create a figure for each metric type
+        metric_figures = {name: go.Figure() for name in metric_names}
 
         for run_name, analyzer in self.analyzers.items():
             traces = analyzer.create_plot_traces()
@@ -139,79 +162,74 @@ class MultiRunAnalyzer:
                 continue
 
             # Add traces to individual figures
-            exploration_fig.add_trace(
-                go.Scatter(
-                    x=traces["exploration"]["x"],
-                    y=traces["exploration"]["y"],
-                    mode="lines+markers",
-                    name=traces["exploration"]["name"],
-                    marker=dict(size=8),
-                )
+            for metric_name, trace_data in traces.items():
+                if metric_name in metric_figures:
+                    metric_figures[metric_name].add_trace(
+                        go.Scatter(
+                            x=trace_data["x"],
+                            y=trace_data["y"],
+                            mode="lines+markers",
+                            name=trace_data["name"],
+                            marker=dict(size=8),
+                        )
+                    )
+
+        # Set layouts and save individual plots
+        titles = {
+            "exploration_score": "Exploration Progress",
+            "puzzle_score": "Puzzle Solving Progress",
+            "story_progress": "Story Progress",
+        }
+
+        y_labels = {
+            "exploration_score": "Locations Explored",
+            "puzzle_score": "Puzzle Score",
+            "story_progress": "Story Progress (%)",
+        }
+
+        for metric_name, fig in metric_figures.items():
+            title = titles.get(
+                metric_name, f"{metric_name.replace('_', ' ').title()} Progress"
+            )
+            y_label = y_labels.get(metric_name, metric_name.replace("_", " ").title())
+
+            fig.update_layout(
+                title=title,
+                xaxis_title="Message Index",
+                yaxis_title=y_label,
+                template="plotly_white",
             )
 
-            puzzle_fig.add_trace(
-                go.Scatter(
-                    x=traces["puzzle"]["x"],
-                    y=traces["puzzle"]["y"],
-                    mode="lines+markers",
-                    name=traces["puzzle"]["name"],
-                    marker=dict(size=8),
-                )
-            )
-
-            story_fig.add_trace(
-                go.Scatter(
-                    x=traces["story"]["x"],
-                    y=traces["story"]["y"],
-                    mode="lines+markers",
-                    name=traces["story"]["name"],
-                    marker=dict(size=8),
-                )
-            )
-
-        # Set layouts
-        exploration_fig.update_layout(
-            title="Exploration Progress",
-            xaxis_title="Message Index",
-            yaxis_title="Locations Explored",
-            template="plotly_white",
-        )
-
-        puzzle_fig.update_layout(
-            title="Puzzle Solving Progress",
-            xaxis_title="Message Index",
-            yaxis_title="Puzzle Score",
-            template="plotly_white",
-        )
-
-        story_fig.update_layout(
-            title="Story Progress",
-            xaxis_title="Message Index",
-            yaxis_title="Story Progress (%)",
-            template="plotly_white",
-        )
-
-        # Save individual plots
-        exploration_fig.write_html("exploration_progress.html")
-        puzzle_fig.write_html("puzzle_progress.html")
-        story_fig.write_html("story_progress.html")
+            # Save individual plot
+            fig.write_html(f"{metric_name}_progress.html")
 
         # Create combined plot
+        subplot_titles = []
+        for metric_name in metric_figures.keys():
+            display_name = next(
+                (
+                    m.display_name
+                    for a in self.analyzers.values()
+                    if a.metrics_timeline and a.metrics_timeline[0].metrics
+                    for m in a.metrics_timeline[0].metrics
+                    if m.name == metric_name
+                ),
+                metric_name.replace("_", " ").title(),
+            )
+            subplot_titles.append(display_name)
+
         fig = make_subplots(
-            rows=3,
+            rows=len(metric_figures),
             cols=1,
-            subplot_titles=("Exploration", "Puzzles", "Story Progress"),
+            subplot_titles=subplot_titles,
             vertical_spacing=0.1,
             shared_xaxes=True,
         )
 
         # Add traces to combined figure
-        for trace in exploration_fig.data:
-            fig.add_trace(trace, row=1, col=1)
-        for trace in puzzle_fig.data:
-            fig.add_trace(trace, row=2, col=1)
-        for trace in story_fig.data:
-            fig.add_trace(trace, row=3, col=1)
+        for i, (metric_name, metric_fig) in enumerate(metric_figures.items(), 1):
+            for trace in metric_fig.data:
+                fig.add_trace(trace, row=i, col=1)
 
         fig.update_layout(
             height=900,
