@@ -24,7 +24,9 @@ from pydantic_ai._result import ResultSchema
 
 
 class ArchitectFormatterAgent(Agent):
-    def __init__(self, architect_model, formatter_model, response_type, *args, **kwargs):
+    def __init__(
+        self, architect_model, formatter_model, response_type, *args, **kwargs
+    ):
         super().__init__(*args, **kwargs)
 
         self.architect_model = Agent(architect_model)

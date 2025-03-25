@@ -1,19 +1,16 @@
 import asyncio
 from abc import ABC, abstractmethod
+from typing import Optional
 
-from markdown_it.common.entities import entities
+from sqlalchemy.orm import Session
+from prompt_toolkit import PromptSession
+from sqlalchemy import desc
 
 from src.consolidation import should_consolidate, consolidate
 from src.context import get_assistant_context
 from src.context_evaluation import evaluate_context
 from src.conversation import Conversation, ChatMessage, sonnet_37, Role
-from src.db import Message
-from sqlalchemy.orm import Session
-from prompt_toolkit import PromptSession
-from typing import List, Optional
-
-from src.db import MessageSummary
-from sqlalchemy import desc
+from src.db import Message, MessageSummary
 
 MAX_CONVERSATION_LENGTH = 1000  # preventing infinite loops
 
@@ -87,15 +84,25 @@ class ChatLoop(ABC):
             duplicate_message = (
                 session.query(Message).filter(Message.body == message.content).first()
             )
+            should_add_new_message = True
             if duplicate_message:
-                print("WARN: Duplicate message found.")
+                if duplicate_message.body == self.conversation.messages[-1].content:
+                    print("WARN: New message duplicates the previous message.")
+                    should_add_new_message = False
+                else:  # doesn't handle rng. Maybe better to assert alternating human ai
+                    print(
+                        "WARN: New message duplicates a message from earlier in the chat."
+                    )
 
-            session.add(
-                Message(
-                    body=message.content, sender=message.role, part_lengths=part_lengths
+            if not should_add_new_message:
+                session.add(
+                    Message(
+                        body=message.content,
+                        sender=message.role,
+                        part_lengths=part_lengths,
+                    )
                 )
-            )
-            session.commit()
+                session.commit()
 
         if previous_messages is None:
             previous_messages = []
@@ -118,9 +125,9 @@ class ChatLoop(ABC):
             await self.process_response(environment_input=environment_input)
 
             if should_consolidate(self.conversation):
-                asyncio.create_task(
-                    consolidate(session=self.session, conversation=self.conversation)
-                )
+                # asyncio.create_task(
+                await consolidate(session=self.session, conversation=self.conversation)
+                # )
 
     @abstractmethod
     async def get_environment_input(self, llm_message=Optional[str]) -> str:

@@ -105,8 +105,8 @@ class AnchorheadGame:
         if setup_commands:
             print(f"Replaying {len(setup_commands)} commands...")
             added_content = None
-            for cmd in tqdm(setup_commands):
-                added_content = await self.send_commands([cmd])
+            for commands in tqdm(setup_commands):
+                added_content = await self.send_commands(commands)
             return str(added_content)
         else:
             return str(self.last_screen_state)
