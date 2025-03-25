@@ -1,8 +1,9 @@
-import os
 from dataclasses import dataclass
-from typing import List, Dict, Optional
+from dataclasses import dataclass
+from typing import List, Optional
+
+import numpy as np
 from sqlalchemy.orm import Session
-import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -56,6 +57,23 @@ class GameAnalyzer:
     def load_messages(self):
         messages = self.session.query(Message).order_by(Message.id).all()
         self.env_messages = [msg for msg in messages if msg.sender == Role.USER]
+
+        # todo this should be overengineering. Probably remove
+        # find last index of system prompt to guard against multiple runs in the same session
+        system_prompt = self.env_messages[0].body
+        system_prompt_indices = [
+            i for i, msg in enumerate(self.env_messages) if msg.body == system_prompt
+        ] + [len(self.env_messages) - 1]
+        run_lengths = [
+            system_prompt_indices[i + 1] - system_prompt_indices[i]
+            for i in range(len(system_prompt_indices))
+        ]
+        longest_run_start_index = system_prompt_indices[np.argmax(run_lengths)]
+        longest_run_end_index = system_prompt_indices[np.argmax(run_lengths) + 1]
+
+        self.env_messages = self.env_messages[
+            longest_run_start_index:longest_run_end_index
+        ]
 
         for idx, msg in enumerate(self.env_messages):
             self.metrics_timeline.append(
@@ -175,28 +193,14 @@ class MultiRunAnalyzer:
                     )
 
         # Set layouts and save individual plots
-        titles = {
-            "exploration_score": "Exploration Progress",
-            "puzzle_score": "Puzzle Solving Progress",
-            "story_progress": "Story Progress",
-        }
-
-        y_labels = {
-            "exploration_score": "Locations Explored",
-            "puzzle_score": "Puzzle Score",
-            "story_progress": "Story Progress (%)",
-        }
-
         for metric_name, fig in metric_figures.items():
-            title = titles.get(
-                metric_name, f"{metric_name.replace('_', ' ').title()} Progress"
-            )
-            y_label = y_labels.get(metric_name, metric_name.replace("_", " ").title())
+            # Get display information from the first analyzer's metrics
+            display_name = self._get_metric_display_name(metric_name)
 
             fig.update_layout(
-                title=title,
+                title=f"{display_name} Progress",
                 xaxis_title="Message Index",
-                yaxis_title=y_label,
+                yaxis_title=display_name,
                 template="plotly_white",
             )
 
@@ -204,19 +208,9 @@ class MultiRunAnalyzer:
             fig.write_html(f"{metric_name}_progress.html")
 
         # Create combined plot
-        subplot_titles = []
-        for metric_name in metric_figures.keys():
-            display_name = next(
-                (
-                    m.display_name
-                    for a in self.analyzers.values()
-                    if a.metrics_timeline and a.metrics_timeline[0].metrics
-                    for m in a.metrics_timeline[0].metrics
-                    if m.name == metric_name
-                ),
-                metric_name.replace("_", " ").title(),
-            )
-            subplot_titles.append(display_name)
+        subplot_titles = [
+            self._get_metric_display_name(name) for name in metric_figures.keys()
+        ]
 
         fig = make_subplots(
             rows=len(metric_figures),
@@ -239,6 +233,15 @@ class MultiRunAnalyzer:
         )
 
         fig.write_html(output_file)
+
+    def _get_metric_display_name(self, metric_name):
+        """Get the display name for a metric from any analyzer that has it defined"""
+        for analyzer in self.analyzers.values():
+            if analyzer.metrics_timeline and analyzer.metrics_timeline[0].metrics:
+                for metric in analyzer.metrics_timeline[0].metrics:
+                    if metric.name == metric_name:
+                        return metric.display_name
+        return metric_name.replace("_", " ").title()
 
 
 async def analyze_game(db_paths=None):

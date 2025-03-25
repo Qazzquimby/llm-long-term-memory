@@ -34,6 +34,14 @@ class ChatLoop(ABC):
             if message.ephemeral:
                 return
             session.add(Message(body=message.content, sender=message.role))
+
+            # warn against exact duplicate message
+            duplicate_message = (
+                session.query(Message).filter(Message.body == message.content).first()
+            )
+            if duplicate_message:
+                print("WARN: Duplicate message found.")
+
             session.commit()
 
         if previous_messages is None:
