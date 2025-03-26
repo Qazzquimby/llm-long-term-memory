@@ -126,9 +126,9 @@ class ChatLoop(ABC):
             await self.process_response(environment_input=environment_input)
 
             if should_consolidate(self.conversation):
-                # asyncio.create_task(
-                await consolidate(session=self.session, conversation=self.conversation)
-                # )
+                asyncio.create_task(
+                    consolidate(session=self.session, conversation=self.conversation)
+                )
 
     @abstractmethod
     async def get_environment_input(self, llm_message=Optional[str]) -> str:
@@ -182,11 +182,15 @@ class ChatLoop(ABC):
         )
 
         if last_summary:
-            last_index = last_summary.created_at_message_index
-
-            for i, message in enumerate(self.conversation.messages):
-                if i <= last_index:
+            num_messages_to_hide = last_summary.created_at_message_index
+            # hide first n non-ephemeral messages
+            num_hidden = 0
+            for message in self.conversation.messages:
+                if not message.ephemeral:
+                    num_hidden += 1
                     message.hidden = True
+                if num_hidden >= num_messages_to_hide:
+                    break
 
 
 class HumanChatLoop(ChatLoop):
