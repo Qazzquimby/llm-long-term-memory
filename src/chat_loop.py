@@ -19,7 +19,8 @@ def load_messages_from_db(session):
     """Load all messages from the database into ChatMessage objects"""
     db_messages = session.query(Message).order_by(Message.id).all()
     chat_messages = [
-        ChatMessage(content=msg.body, role=msg.sender) for msg in db_messages
+        ChatMessage(content=msg.body, role=msg.sender, db_id=msg.id)
+        for msg in db_messages
     ]
     return chat_messages
 
@@ -57,13 +58,11 @@ class ChatLoop(ABC):
                 if context:
                     try:
                         context_str = context.content
-                        entities_length = (len(context_str.split("Facts:")[0]),)
-                        facts_length = (
-                            len(
-                                context_str.split("Facts:")[1].split(
-                                    "## Conversation Summary:"
-                                )[0]
-                            ),
+                        entities_length = len(context_str.split("Facts:")[0])
+                        facts_length = len(
+                            context_str.split("Facts:")[1].split(
+                                "## Conversation Summary:"
+                            )[0]
                         )
                         summaries_length = len(
                             context_str.split("## Conversation Summary:")[1]
@@ -95,15 +94,15 @@ class ChatLoop(ABC):
                         "WARN: New message duplicates a message from earlier in the chat."
                     )
 
-            if not should_add_new_message:
-                session.add(
-                    Message(
-                        body=message.content,
-                        sender=message.role,
-                        part_lengths=part_lengths,
-                    )
+            if should_add_new_message:
+                db_message = Message(
+                    body=message.content,
+                    sender=message.role,
+                    part_lengths=part_lengths,
                 )
+                session.add(db_message)
                 session.commit()
+                message.db_id = db_message.id
 
         if previous_messages is None:
             previous_messages = []

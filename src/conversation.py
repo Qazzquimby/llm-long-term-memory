@@ -57,6 +57,7 @@ class ChatMessage:
         role: Role = Role.USER,
         ephemeral=False,
         hidden=False,
+        db_id=None,
     ):
         if role == Role.SYSTEM:
             role = Role.USER
@@ -68,6 +69,7 @@ class ChatMessage:
         self.role = role
         self.ephemeral = ephemeral
         self.hidden = hidden
+        self.db_id = db_id
 
         self.num_words = len(content.split())
 

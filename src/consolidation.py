@@ -158,14 +158,18 @@ For simplicity, speak in first person, where your character is "I". Out of chara
     ]
     entities_in_scene = [entity for entity in entities_in_scene if entity]
 
+    db_messages = []
+    for chat_message in consolidation_window:
+        if chat_message.db_id:
+            db_message = session.query(Message).get(chat_message.db_id)
+            if db_message:
+                db_messages.append(db_message)
     new_message_summary = MessageSummary(
         importance=importance_string_to_value.get(result.data.summary.importance),
         body=result.data.summary.body,
         facts=new_facts,
         entities=entities_in_scene,
-        messages=[
-            Message(body=msg.content, sender=msg.role) for msg in consolidation_window
-        ],
+        messages=db_messages,
         created_at_message_index=end_index,
     )
 
