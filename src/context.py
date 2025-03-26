@@ -45,7 +45,7 @@ class FactModel(ContextItemModel):
         "~1 sentence. Facts should be largely timeless, not about events or current status"
     )
     relevant_entity_names: List[str] = Field(
-        description="Names of any entities related to this fact. You must use one of their aliases exactly.",
+        description="Names of any entities related to this fact. Use the aliases of new or existing entities exactly.",
     )
 
     def __str__(self):
@@ -57,7 +57,7 @@ class MessageSummaryModel(ContextItemModel):
         description="Stay concise and focus on events rather than factual statements (handled elsewhere). Write it like how you'd recall a memory, focusing on what stands out or seems important."
     )
     relevant_entity_names: List[str] = Field(
-        description="Names of any entities in or closely related to these events. You must use one of their aliases exactly.",
+        description="Names of any entities in or closely related to these events. Use the aliases of new or existing entities exactly.",
     )
 
 

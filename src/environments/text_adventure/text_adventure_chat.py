@@ -11,7 +11,7 @@ from src.conversation import ChatMessage
 
 class TextAdventureResponseModel(BaseModel):
     thinking: str = Field(
-        description="Think things through before moving on. It helps to stay concise and strategic, and not repeat your previous thoughts much."
+        description="Think things through before moving on. It helps to stay concise and strategic, and not repeat information from your previous 'thinking's."
     )
     commands: List[str] = Field(
         description="List of verbatim commands that will be input to the game. You should usually send only one, unless you have good reason, since you won't see the response until after all commands have been input."
@@ -94,13 +94,13 @@ Anchorhead...
 
             return game_response
 
-    def extract_commands_from_db(self) -> List[str]:
-        commands = []
+    def extract_commands_from_db(self) -> List[List[str]]:
+        command_lists = []
         for message in self.conversation.messages:
             message: ChatMessage  # needed for some reason for hinting
             if message.role == Role.ASSISTANT:
                 response_obj = TextAdventureResponseModel.model_validate_json(
                     message.content
                 )
-                commands.append(response_obj.commands)
-        return commands
+                command_lists.append(response_obj.commands)
+        return command_lists

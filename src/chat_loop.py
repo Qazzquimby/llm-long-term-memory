@@ -86,10 +86,11 @@ class ChatLoop(ABC):
             )
             should_add_new_message = True
             if duplicate_message:
+                # doesn't handle rng. Maybe better to assert alternating human ai
                 if duplicate_message.body == self.conversation.messages[-1].content:
                     print("WARN: New message duplicates the previous message.")
                     should_add_new_message = False
-                else:  # doesn't handle rng. Maybe better to assert alternating human ai
+                else:
                     print(
                         "WARN: New message duplicates a message from earlier in the chat."
                     )
@@ -137,7 +138,16 @@ class ChatLoop(ABC):
         self,
         environment_input: str,
     ):
-        self.conversation.add_message(message=ChatMessage(content=environment_input))
+        if self.conversation.messages:
+            if (
+                environment_input == self.conversation.messages[-1].content
+                and self.conversation.messages[-1].role != Role.ASSISTANT
+            ):
+                print("WARN: New message duplicates the previous message. Skipping")
+            else:
+                self.conversation.add_message(
+                    message=ChatMessage(content=environment_input)
+                )
 
         context = get_assistant_context(self.session)
         if str(context):

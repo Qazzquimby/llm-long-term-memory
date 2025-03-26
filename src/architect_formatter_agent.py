@@ -68,7 +68,7 @@ class ArchitectFormatterAgent(Agent):
             usage_limits=usage_limits,
             usage=usage,
             infer_name=infer_name,
-        )
+        )  # todo check it has context obj
         formatted_response = await self.formatter_model.run(
             user_prompt=architect_plan.data,
             model=formatter_model,

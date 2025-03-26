@@ -156,6 +156,7 @@ For simplicity, speak in first person, where your character is "I". Out of chara
         get_entity_by_name(session, entity_name)
         for entity_name in result.data.summary.relevant_entity_names
     ]
+    entities_in_scene = [entity for entity in entities_in_scene if entity]
 
     new_message_summary = MessageSummary(
         importance=importance_string_to_value.get(result.data.summary.importance),
