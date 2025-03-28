@@ -52,9 +52,9 @@ async def evaluate_context(
 
     context_items_by_id = {}
     for item in context.facts:
-        context_items_by_id[item.id] = item
+        context_items_by_id[item.db_id] = item
     for item in context.message_summaries:
-        context_items_by_id[item.id] = item
+        context_items_by_id[item.db_id] = item
 
     context_parts = []
     if context.entities:
@@ -63,18 +63,18 @@ async def evaluate_context(
         )
         for entity in context.entities:
             try:
-                context_parts.append(f"{entity.aliases[0].alias}: {entity.brief}")
+                context_parts.append(f"{entity.aliases[0]}: {entity.brief}")
             except IndexError:
                 pass
 
     context_parts.append("\n# Things for you to evaluate:")
     if context.message_summaries:
         for summary in context.message_summaries:
-            context_parts.append(f"- [ID:{summary.id}] {summary.body}")
+            context_parts.append(f"- [ID:{summary.db_id}] {summary.body}")
 
     if context.facts:
         for fact in context.facts:
-            context_parts.append(f"- [ID:{fact.id}] {fact.body}")
+            context_parts.append(f"- [ID:{fact.db_id}] {fact.body}")
 
     context_str = "\n".join(context_parts)
 

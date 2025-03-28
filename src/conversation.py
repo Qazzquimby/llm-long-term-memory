@@ -14,8 +14,8 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.result import ResultDataT
 
-from src.context import DbModel
 from src.db import Role
+from src.models import DbModel
 
 PROJECT_ROOT = Path(__file__).resolve().parents
 for parent in PROJECT_ROOT:
@@ -47,7 +47,7 @@ OPENROUTER_API_KEY = get_api_key("OPENROUTER_API_KEY")
 
 class ChatMessage(DbModel):
     content: str
-    role: Role
+    role: Role = Role.USER
     ephemeral: bool = False
     hidden: bool = False
     num_words: int = None

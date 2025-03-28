@@ -7,10 +7,10 @@ from sqlalchemy.orm import Session
 
 from src.architect_formatter_agent import ArchitectFormatterAgent
 from src.context import (
-    get_consolidator_context,
     EntityModel,
     FactModel,
     MessageSummaryModel,
+    ConsolidatorContext,
 )
 from src.conversation import (
     Conversation,
@@ -31,9 +31,11 @@ from src.db import (
 MAX_CHAT_WORDS_BEFORE_CONSOLIDATION = 2500
 NUM_WORDS_TO_CONSOLIDATE = 1250
 
+IS_CONSOLIDATING = False
+
 
 class UpdatedEntityModel(EntityModel):
-    index: int
+    ids_to_replace: List[int]
 
 
 importance_string_to_value = {
@@ -46,7 +48,7 @@ importance_string_to_value = {
 
 
 class UpdatedFactModel(FactModel):
-    index: int
+    ids_to_replace: List[int]
 
 
 class ConsolidateResult(BaseModel):
@@ -57,13 +59,13 @@ class ConsolidateResult(BaseModel):
         description="New entities not already in the context. Entities should be things deserving of a wiki-page in your personal notes, not just any noun."
     )
     updated_entities: List[UpdatedEntityModel] = Field(
-        description="For any entities now made out of date, write a new version to replace them."
+        description="For any entities now made out of date, or should be combined, write a new version to replace them."
     )
     new_facts: List[FactModel] = Field(
         description="New things to remember, not already in the context. Individual meaningful statements worth remembering."
     )
     updated_facts: List[UpdatedFactModel] = Field(
-        description="For any facts in the context that are now made out of date, write a new version to replace them."
+        description="For any facts in the context that are now made out of date, or should be combined, write a new version to replace them."
     )
 
 
@@ -87,18 +89,23 @@ consolidator_agent = ArchitectFormatterAgent(
 
 
 def should_consolidate(conversation: Conversation):
+    if IS_CONSOLIDATING:
+        return False
     non_hidden_messages = [msg for msg in conversation.messages if not msg.hidden]
     total_words = sum([msg.num_words for msg in non_hidden_messages])
     return total_words > MAX_CHAT_WORDS_BEFORE_CONSOLIDATION
 
 
 async def consolidate(session: Session, conversation: Conversation):
+    global IS_CONSOLIDATING
+    IS_CONSOLIDATING = True
     print("CONSOLIDATING")
     consolidation_window, end_index = get_consolidation_window_and_end_index(
         conversation
     )
-    consolidator_context = await get_consolidator_context(
-        session=session, consolidation_window=consolidation_window
+    consolidator_context = ConsolidatorContext.get_for_conversation(
+        session=session,
+        messages=consolidation_window,
     )
     recent_messages = []
     for message in consolidation_window:
@@ -122,12 +129,12 @@ RECENT MESSAGES:
 It's time to update and maintain your memory system based off of recent events.
 For simplicity, speak in first person, where your character is "I". Out of character text can be written OOC: ...
 
-For this to be a useful system it must be well curated. Include only strategic information, merge duplicate entries, and strive to keep the system efficient.
+For this to be a useful system it must be well curated. Include only strategic information, merge duplicate entries, update anything no longer true, and strive to keep the system efficient.
 """
     result = await consolidator_agent.run(prompt)
     result.data: ConsolidateResult
 
-    # update db
+    # update db # todo handle updates
 
     for entity_row in result.data.new_entities:
         new_entity = Entity(brief=entity_row.brief)
@@ -182,6 +189,8 @@ For this to be a useful system it must be well curated. Include only strategic i
     # do this last so that the chat loop still sees the messages while consolidating
     for message in consolidation_window:
         message.hidden = True
+
+    IS_CONSOLIDATING = True
     return
 
 
@@ -190,12 +199,15 @@ def get_consolidation_window_and_end_index(conversation: Conversation):
         (i for i, msg in enumerate(conversation.messages) if not msg.hidden), None
     )
 
-    # find back half of unhidden messages
+    # find back 2/3 of unhidden messages.
+    # This can be long running, so it needs to catch up.
     non_hidden_messages = [msg for msg in conversation.messages if not msg.hidden]
+    num_non_hidden_words = sum([msg.num_words for msg in non_hidden_messages])
+    num_words_to_handle = num_non_hidden_words * 2 / 3
 
     split_index = 0
     total_words_in_window = 0
-    while total_words_in_window < NUM_WORDS_TO_CONSOLIDATE:
+    while total_words_in_window < num_words_to_handle:
         split_index += 2
         total_words_in_window += non_hidden_messages[split_index - 1].num_words
         total_words_in_window += non_hidden_messages[split_index].num_words
