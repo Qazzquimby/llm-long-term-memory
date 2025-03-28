@@ -6,7 +6,7 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from sqlalchemy.orm import Session
 
-from src.context import AssistantContext
+from src.context import AssistantContextWindow
 from src.conversation import sonnet_37, OPENROUTER_API_KEY, Conversation, Role, v3
 from src.db import UsageRecord
 
@@ -43,7 +43,7 @@ context_evaluator_agent = Agent(
 
 async def evaluate_context(
     session: Session,
-    context: AssistantContext,
+    context: AssistantContextWindow,
     conversation: Conversation,
 ):
     new_message = conversation.messages[-1]

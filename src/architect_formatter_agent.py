@@ -69,7 +69,7 @@ class ArchitectFormatterAgent(Agent):
             usage=usage,
             infer_name=infer_name,
         )  # todo check it has context obj
-        formatter_prompt = f"{user_prompt}\n\n{architect_plan.data}\n\n---\n\nPlease correct any formatting issues in the response above."
+        formatter_prompt = f"{user_prompt}\n\n{architect_plan.data}\n\n---\n\nPlease correct any formatting issues in the response above, and ensure the response meets the requirements."
 
         formatted_response = await self.formatter_model.run(
             user_prompt=formatter_prompt,

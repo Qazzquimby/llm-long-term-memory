@@ -121,6 +121,8 @@ RECENT MESSAGES:
 <<Chat Paused for Memory Consolidation>>
 It's time to update and maintain your memory system based off of recent events.
 For simplicity, speak in first person, where your character is "I". Out of character text can be written OOC: ...
+
+For this to be a useful system it must be well curated. Include only strategic information, merge duplicate entries, and strive to keep the system efficient.
 """
     result = await consolidator_agent.run(prompt)
     result.data: ConsolidateResult

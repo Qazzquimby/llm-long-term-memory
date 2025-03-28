@@ -7,7 +7,7 @@ from prompt_toolkit import PromptSession
 from sqlalchemy import desc
 
 from src.consolidation import should_consolidate, consolidate
-from src.context import get_assistant_context
+from src.context import AssistantContextWindow
 from src.context_evaluation import evaluate_context
 from src.conversation import Conversation, ChatMessage, sonnet_37, Role
 from src.db import Message, MessageSummary
@@ -148,7 +148,9 @@ class ChatLoop(ABC):
                     message=ChatMessage(content=environment_input)
                 )
 
-        context = AssistantContext(session=self.session)
+        context = AssistantContextWindow.get_for_conversation(
+            session=self.session, messages=self.conversation.messages[-8:]
+        )
         if str(context):
             self.conversation.add_message(
                 message=ChatMessage(
