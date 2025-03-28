@@ -35,7 +35,7 @@ class DbModel(BaseModel, ABC):
 # todo prevent multiple entities with same primary alias?
 #  more specifically we want them to be appropriately merged.
 #  could keep earliest, could keep latest, could request merge (probably increasing in length)
-class EntityModel(BaseModel):
+class EntityModel(DbModel):
     aliases: List[str] = Field(
         description="1 or more names for the entity. Make the first one the most clear and canonical, as it will be used by default."
     )
@@ -44,12 +44,30 @@ class EntityModel(BaseModel):
     )
 
     @classmethod
+    def from_db(cls, db_obj):
+        return cls(
+            db_id=db_obj.id,
+            aliases=[alias.alias for alias in db_obj.aliases],
+            brief=db_obj.brief
+        )
+
+    def to_db(self, session, db_class):
+        db_obj = db_class(
+            brief=self.brief,
+        )
+        if self.db_id:
+            db_obj.id = self.db_id
+        
+        # Handle aliases relationship
+        from src.db import EntityAlias
+        db_obj.aliases = [EntityAlias(alias=alias) for alias in self.aliases]
+        
+        return db_obj
+
+    @classmethod
     def get_all(cls, session: Session):
         rows = session.query(Entity).all()
-        return [
-            cls(aliases=[alias.alias for alias in row.aliases], brief=row.brief)
-            for row in rows
-        ]
+        return [cls.from_db(row) for row in rows]
 
 
 importance_to_num = {
@@ -62,7 +80,7 @@ importance_to_num = {
 num_to_importance = {v: k for k, v in importance_to_num.items()}
 
 
-class ContextItemModel(BaseModel):
+class ContextItemModel(DbModel):
     importance: Literal[
         "trivial",
         "probably not important",
@@ -72,6 +90,13 @@ class ContextItemModel(BaseModel):
     ] = Field(
         description="Strategic importance. One of: trivial, unimportant, probably important, very important, critically important"
     )
+
+    def _get_importance_value(self) -> int:
+        return importance_to_num[self.importance]
+
+    @classmethod
+    def _get_importance_string(cls, value: int) -> str:
+        return num_to_importance[value]
 
     # importance: conint(ge=1, le=10) = Field(
     #     description="Strategic importance. 1 is trivial, 5 is probably important, and 10 is absolutely critical"
@@ -93,18 +118,36 @@ class FactModel(ContextItemModel):
         return f"I:{self.importance} {self.body}"
 
     @classmethod
+    def from_db(cls, db_obj):
+        return cls(
+            db_id=db_obj.id,
+            body=db_obj.body,
+            relevant_entity_names=[entity.aliases[0].alias for entity in db_obj.entities],
+            importance=cls._get_importance_string(db_obj.importance)
+        )
+
+    def to_db(self, session, db_class):
+        db_obj = db_class(
+            body=self.body,
+            importance=self._get_importance_value(),
+        )
+        if self.db_id:
+            db_obj.id = self.db_id
+
+        # Handle entity relationships
+        from src.db import get_entity_by_name
+        db_obj.entities = [
+            get_entity_by_name(session, name) 
+            for name in self.relevant_entity_names
+            if get_entity_by_name(session, name) is not None
+        ]
+        
+        return db_obj
+
+    @classmethod
     def get_all(cls, session: Session):
         rows = session.query(Fact).all()
-        return [
-            cls(
-                body=row.body,
-                relevant_entity_names=[
-                    entity.aliases[0].alias for entity in row.entities
-                ],
-                importance=num_to_importance[row.importance],
-            )
-            for row in rows
-        ]
+        return [cls.from_db(row) for row in rows]
 
 
 class MessageSummaryModel(ContextItemModel):
@@ -116,18 +159,36 @@ class MessageSummaryModel(ContextItemModel):
     )
 
     @classmethod
+    def from_db(cls, db_obj):
+        return cls(
+            db_id=db_obj.id,
+            body=db_obj.body,
+            relevant_entity_names=[entity.aliases[0].alias for entity in db_obj.entities],
+            importance=cls._get_importance_string(db_obj.importance)
+        )
+
+    def to_db(self, session, db_class):
+        db_obj = db_class(
+            body=self.body,
+            importance=self._get_importance_value(),
+        )
+        if self.db_id:
+            db_obj.id = self.db_id
+
+        # Handle entity relationships
+        from src.db import get_entity_by_name
+        db_obj.entities = [
+            get_entity_by_name(session, name) 
+            for name in self.relevant_entity_names
+            if get_entity_by_name(session, name) is not None
+        ]
+        
+        return db_obj
+
+    @classmethod
     def get_all(cls, session: Session):
         rows = session.query(MessageSummary).all()
-        return [
-            cls(
-                body=row.body,
-                relevant_entity_names=[
-                    entity.aliases[0].alias for entity in row.entities
-                ],
-                importance=num_to_importance[row.importance],
-            )
-            for row in rows
-        ]
+        return [cls.from_db(row) for row in rows]
 
 
 class ScoredContextItem(BaseModel):
