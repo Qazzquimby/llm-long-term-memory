@@ -5,7 +5,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.conversation import ChatMessage
-from src.models import ContextItemModel, MessageSummaryModel, EntityModel, FactModel
+from src.models import (
+    ContextItemModel,
+    MessageSummaryModel,
+    EntityModel,
+    FactModel,
+    importance_to_num,
+)
 
 
 class ScoredContextItem(BaseModel):
@@ -15,8 +21,41 @@ class ScoredContextItem(BaseModel):
     recency: float
 
     @classmethod
-    def from_item(cls, item):
+    def from_item(cls, item: ContextItemModel):
         # todo score here
+
+        # Recency
+        # todo add message index to ContextItemModel
+        #   pass current message index to this function
+        #   Get a decaying recency score
+
+        # Length
+        # negative score, maybe dividing value?
+        # todo some kind of linear decay based on length..?
+        #  longer texts will be relevant to more things, and probably more likely marked useful
+        #  but they cost more. Want to correct for that.
+
+        # Keyword Search
+        # todo value of how well the item matches keyword search
+
+        # Vector Search
+        # todo value ofh ow well the item matches vector search
+
+        # Importance
+        # 1-5
+        importance = importance_to_num[item.importance]
+
+        # Past Usefulness
+        # todo put usage_records on ContextItemModel
+        #  get avg usefulness [0-2] across past retrievals
+
+        # ?Coherence?
+        # context relevant to other relevant context for explainability
+        # Later look at relationships between items
+
+        # todo later load weights here
+        # sklearn random forest or mlp to turn the following metrics into the final score
+        # estimating a usefulness score from 0-1 based on UsageRecord.usefulness (normalized)
 
         return cls(item=item, total_score=0, recency=0)
 
@@ -34,44 +73,46 @@ class ContextWindow(ABC):
 
     @classmethod
     def get_for_conversation(cls, session: Session, messages: List[ChatMessage]):
-        # all_message_summaries = session.query(MessageSummary).all()
-        # all_entities = session.query(Entity).all()
-        # all_facts = session.query(Fact).all()
-        # all_scored = [ # note this should use the .get_all functions
-        #     ScoredContextItem.from_item(item)
-        #     for item in all_message_summaries + all_entities + all_facts
-        # ]
-        # todo use ranked
+        all_message_summaries = MessageSummaryModel.get_all(session=session)
+        all_facts = FactModel.get_all(session=session)
+
+        all_entities = EntityModel.get_all(session=session)
+
+        all_scored = [
+            ScoredContextItem.from_item(item)
+            for item in all_message_summaries + all_facts
+        ]
+        by_score = sorted(all_scored, key=lambda x: x.total_score, reverse=True)
+
+        # todo get top items up to some maximum length
+        #  and maybe only positive ranked items if sometimes there are fewer than that many needed items
+
+        top_20 = by_score[:20]
+        relevant_message_summaries = [
+            scored_item.item
+            for scored_item in top_20
+            if isinstance(scored_item.item, MessageSummaryModel)
+        ]
+        relevant_facts = [
+            scored_item.item
+            for scored_item in top_20
+            if isinstance(scored_item.item, FactModel)
+        ]
+
+        relevant_aliases = set()
+        for context_item in relevant_message_summaries + relevant_facts:
+            if "relevant_entity_names" in context_item.item.__dict__:
+                relevant_aliases.update(context_item.item.relevant_entity_names)
+
+        relevant_entities = [
+            entity for entity in all_entities if entity.aliases[0] in relevant_aliases
+        ]
+
         return cls(
-            message_summaries=MessageSummaryModel.get_all(session=session),
-            entities=EntityModel.get_all(session=session),
-            facts=FactModel.get_all(session=session),
+            message_summaries=relevant_message_summaries,
+            entities=relevant_entities,
+            facts=relevant_facts,
         )
-
-        # negative score based on weight
-        # get all the items with positive score?
-        # plus some max length
-
-        # todo these facts will have int importances
-        #   need dedicated saving and loading
-
-        # todo later load weights here
-
-        # TODO want to rank these.
-
-        # sklearn random forest or mlp to turn the following metrics into the final score
-        # estimating a usefulness score from 0-1 based on UsageRecord.usefulness (normalized)
-
-        # metrics
-        # age, age since updated
-        # importance
-        # LATER keyword matching to recent context, especially last couple messages. Need to implement first.
-        # LATER embedding relevance to the same. Need to implement first.
-        # past usages
-        # usefulness scores across past usages. Just the average or maybe something more clever.
-        # context relevant to other relevant context for explainability
-        # Later look at relationships between items
-        # ?prefer items that were in previous contexts? May be redundant given the above
 
 
 class AssistantContextWindow(ContextWindow):

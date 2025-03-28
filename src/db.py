@@ -99,18 +99,6 @@ class ContextItem(Base):
         ForeignKey("context_items.id"), nullable=True
     )
 
-    @property
-    def times_provided(self):
-        """Backward compatibility property that counts all usage records"""
-        return len(self.usage_records) if self.usage_records else 0
-
-    @property
-    def times_useful(self):
-        """Backward compatibility property that counts usage records with usefulness > 0"""
-        if not self.usage_records:
-            return 0
-        return sum(1 for record in self.usage_records if record.usefulness > 0)
-
 
 class Message(Base):
     __tablename__ = "messages"
