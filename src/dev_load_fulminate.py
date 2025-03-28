@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from src.conversation import ChatMessage, Role
+from src.conversation import ChatMessage
+from src.db import Role
 
 
 def load_fulminate() -> list[ChatMessage]:

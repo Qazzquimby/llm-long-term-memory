@@ -21,7 +21,12 @@ from sqlalchemy.orm import (
 )
 import enum
 
-from src.conversation import Role
+
+class Role(enum.Enum):
+    USER = "user"
+    SYSTEM = "system"
+    ASSISTANT = "assistant"
+
 
 Base = declarative_base()
 

@@ -134,7 +134,7 @@ class AnchorheadGame:
                     )
                     if added_content:
                         break
-                    await asyncio.sleep(0.2)
+                    await asyncio.sleep(0.1)
 
                 self.last_screen_state = updated_state
                 if added_content:

@@ -7,8 +7,8 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from sqlalchemy.orm import Session
 
 from src.context import AssistantContextWindow
-from src.conversation import sonnet_37, OPENROUTER_API_KEY, Conversation, Role, v3
-from src.db import UsageRecord
+from src.conversation import sonnet_37, OPENROUTER_API_KEY, Conversation, v3
+from src.db import UsageRecord, Role
 
 
 class ContextItemEvaluation(BaseModel):

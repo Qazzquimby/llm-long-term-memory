@@ -1,4 +1,3 @@
-import enum
 import os
 from pathlib import Path
 from typing import Type
@@ -15,7 +14,8 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.result import ResultDataT
 
-from src.db import DbModel
+from src.context import DbModel
+from src.db import Role
 
 PROJECT_ROOT = Path(__file__).resolve().parents
 for parent in PROJECT_ROOT:
@@ -43,12 +43,6 @@ r1 = "openrouter/deepseek/deepseek-r1"
 v3 = "openrouter/deepseek/deepseek-chat-v3-0324"
 gpt_4o_mini = "openrouter/openai/gpt-4o-mini"
 OPENROUTER_API_KEY = get_api_key("OPENROUTER_API_KEY")
-
-
-class Role(enum.Enum):
-    USER = "user"
-    SYSTEM = "system"
-    ASSISTANT = "assistant"
 
 
 class ChatMessage(DbModel):
@@ -97,6 +91,30 @@ class ChatMessage(DbModel):
             return ModelResponse(parts=[TextPart(content=self.content)])
         else:
             return ModelRequest(parts=[UserPromptPart(content=self.content)])
+
+
+async def call_llm(
+    model: str,
+    result_type: ResultDataT,
+    message_history: list[ChatMessage],
+):
+    agent = Agent(
+        model=OpenAIModel(
+            model.replace("openrouter/", ""),
+            provider=OpenAIProvider(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=OPENROUTER_API_KEY,
+            ),
+        ),
+        result_type=result_type,
+    )
+    pydantic_messages = [message.to_pydantic_ai() for message in message_history[:-1]]
+    user_prompt = message_history[-1].content
+    response = await agent.run(
+        user_prompt=user_prompt,
+        message_history=pydantic_messages,
+    )
+    return response
 
 
 class Conversation:
@@ -148,7 +166,7 @@ class Conversation:
         if active_result_type is None:
             active_result_type = str
 
-        response = await self.call_llm(
+        response = await call_llm(
             model=model,
             result_type=active_result_type,
             message_history=message_to_show,
@@ -164,29 +182,3 @@ class Conversation:
                 message.hidden = True
 
         return response.data
-
-    async def call_llm(
-        self,
-        model: str,
-        result_type: ResultDataT,
-        message_history: list[ChatMessage],
-    ):
-        agent = Agent(
-            model=OpenAIModel(
-                model.replace("openrouter/", ""),
-                provider=OpenAIProvider(
-                    base_url="https://openrouter.ai/api/v1",
-                    api_key=OPENROUTER_API_KEY,
-                ),
-            ),
-            result_type=result_type,
-        )
-        pydantic_messages = [
-            message.to_pydantic_ai() for message in message_history[:-1]
-        ]
-        user_prompt = message_history[-1].content
-        response = await agent.run(
-            user_prompt=user_prompt,
-            message_history=pydantic_messages,
-        )
-        return response

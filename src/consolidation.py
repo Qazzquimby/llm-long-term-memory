@@ -14,7 +14,6 @@ from src.context import (
 )
 from src.conversation import (
     Conversation,
-    Role,
     OPENROUTER_API_KEY,
     r1,
     gpt_4o_mini,
@@ -26,6 +25,7 @@ from src.db import (
     MessageSummary,
     Message,
     get_entity_by_name,
+    Role,
 )
 
 MAX_CHAT_WORDS_BEFORE_CONSOLIDATION = 2500

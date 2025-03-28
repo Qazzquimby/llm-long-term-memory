@@ -9,8 +9,8 @@ from sqlalchemy import desc
 from src.consolidation import should_consolidate, consolidate
 from src.context import AssistantContextWindow
 from src.context_evaluation import evaluate_context
-from src.conversation import Conversation, ChatMessage, sonnet_37, Role
-from src.db import Message, MessageSummary
+from src.conversation import Conversation, ChatMessage, sonnet_37
+from src.db import Message, MessageSummary, Role
 
 MAX_CONVERSATION_LENGTH = 1000  # preventing infinite loops
 

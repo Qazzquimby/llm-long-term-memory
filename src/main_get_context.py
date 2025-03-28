@@ -1,8 +1,8 @@
 from src.context import get_assistant_context, AssistantContextWindow
 from src.context_evaluation import evaluate_context
-from src.conversation import Role, Conversation
+from src.conversation import Conversation
 
-from src.db import get_db_factory
+from src.db import get_db_factory, Role
 from src.dev_load_fulminate import load_fulminate
 from src.main_consolidation import consolidate_fulminate_no_context
 
