@@ -17,17 +17,28 @@ from src.models import (
 class ScoredContextItem(BaseModel):
     item: ContextItemModel
     total_score: float
-
-    recency: float
+    recency_score: float
+    usefulness_score: float
+    importance_score: float
 
     @classmethod
-    def from_item(cls, item: ContextItemModel):
-        # todo score here
+    def from_item(cls, item: ContextItemModel, current_message_index: int):
+        # Recency score (0-1) with exponential decay
+        age = current_message_index - item.created_at_message_index
+        recency_score = max(0.0, 1.0 * (0.95**age))
 
-        # Recency
-        # todo add message index to ContextItemModel
-        #   pass current message index to this function
-        #   Get a decaying recency score
+        # Past usefulness score (0-1)
+        usefulness_score = item.get_avg_usefulness() / 2.0  # Normalize from 0-2 to 0-1
+
+        # Importance score (0-1)
+        importance_score = (importance_to_num[item.importance] - 1) / 4.0
+        # Normalize from 1-5 to 0-1
+
+        # Weighted combination of scores
+        # Currently weighing recency and usefulness more heavily than base importance
+        total_score = (
+            (0.4 * recency_score) + (0.4 * usefulness_score) + (0.2 * importance_score)
+        )
 
         # Length
         # negative score, maybe dividing value?
@@ -41,14 +52,6 @@ class ScoredContextItem(BaseModel):
         # Vector Search
         # todo value ofh ow well the item matches vector search
 
-        # Importance
-        # 1-5
-        importance = importance_to_num[item.importance]
-
-        # Past Usefulness
-        # todo put usage_records on ContextItemModel
-        #  get avg usefulness [0-2] across past retrievals
-
         # ?Coherence?
         # context relevant to other relevant context for explainability
         # Later look at relationships between items
@@ -57,7 +60,13 @@ class ScoredContextItem(BaseModel):
         # sklearn random forest or mlp to turn the following metrics into the final score
         # estimating a usefulness score from 0-1 based on UsageRecord.usefulness (normalized)
 
-        return cls(item=item, total_score=0, recency=0)
+        return cls(
+            item=item,
+            total_score=total_score,
+            recency_score=recency_score,
+            usefulness_score=usefulness_score,
+            importance_score=importance_score,
+        )
 
 
 class ContextWindow(ABC):

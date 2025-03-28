@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import List, Literal, Optional, Type, TypeVar
 
-from pydantic import Field, BaseModel
+from pydantic import Field, BaseModel, conint
 from pydantic_ai.messages import ModelResponse, TextPart, ModelRequest, UserPromptPart
 from sqlalchemy.orm import Session
 
-from db import MessageSummary, Entity, Fact, Base, Role
+from db import MessageSummary, Entity, Fact, Base, Role, UsageRecord
 
 T = TypeVar("T")
 
@@ -90,6 +90,9 @@ class ContextItemModel(DbModel, ABC):
     ] = Field(
         description="Strategic importance. One of: trivial, unimportant, probably important, very important, critically important"
     )
+    created_at_message_index: int = Field(description="Message index when this item was created")
+    updated_at_message_index: Optional[int] = Field(description="Message index when this item was last updated", default=None)
+    usage_records: List["UsageRecordModel"] = Field(default_factory=list)
 
     def _get_importance_value(self) -> int:
         return importance_to_num[self.importance]
@@ -98,12 +101,44 @@ class ContextItemModel(DbModel, ABC):
     def _get_importance_string(cls, value: int) -> str:
         return num_to_importance[value]
 
+    def get_avg_usefulness(self) -> float:
+        """Get average usefulness score from usage records"""
+        if not self.usage_records:
+            return 0.0
+        return sum(record.usefulness for record in self.usage_records) / len(self.usage_records)
+
     # importance: conint(ge=1, le=10) = Field(
     #     description="Strategic importance. 1 is trivial, 5 is probably important, and 10 is absolutely critical"
     # )
     # salience: conint(ge=1, le=10) = Field(
     #     description="Emotional valence. 1 is has no affect on you, 5 has some emotional impact, and 10 is a burned in part of your identity"
     # )
+
+
+class UsageRecordModel(DbModel):
+    """Model for tracking how useful a context item was in a conversation"""
+    context_item_id: int
+    created_at_message_index: int
+    usefulness: conint(ge=0, le=2) = Field(description="How useful this item was: 0=not used, 1=mentioned, 2=key insight")
+
+    @classmethod
+    def from_db(cls, db_obj: UsageRecord):
+        return cls(
+            db_id=db_obj.id,
+            context_item_id=db_obj.context_item_id,
+            created_at_message_index=db_obj.created_at_message_index,
+            usefulness=db_obj.usefulness
+        )
+
+    def to_db(self, session, db_class) -> UsageRecord:
+        db_obj = db_class(
+            context_item_id=self.context_item_id,
+            created_at_message_index=self.created_at_message_index,
+            usefulness=self.usefulness
+        )
+        if self.db_id:
+            db_obj.id = self.db_id
+        return db_obj
 
 
 class FactModel(ContextItemModel):
@@ -126,12 +161,17 @@ class FactModel(ContextItemModel):
                 entity.aliases[0].alias for entity in db_obj.entities
             ],
             importance=cls._get_importance_string(db_obj.importance),
+            created_at_message_index=db_obj.created_at_message_index,
+            updated_at_message_index=db_obj.updated_at_message_index,
+            usage_records=[UsageRecordModel.from_db(record) for record in db_obj.usage_records]
         )
 
     def to_db(self, session, db_class):
         db_obj = db_class(
             body=self.body,
             importance=self._get_importance_value(),
+            created_at_message_index=self.created_at_message_index,
+            updated_at_message_index=self.updated_at_message_index,
         )
         if self.db_id:
             db_obj.id = self.db_id
@@ -143,6 +183,13 @@ class FactModel(ContextItemModel):
             get_entity_by_name(session, name)
             for name in self.relevant_entity_names
             if get_entity_by_name(session, name) is not None
+        ]
+
+        # Handle usage records
+        from src.db import UsageRecord
+        db_obj.usage_records = [
+            record.to_db(session, UsageRecord)
+            for record in self.usage_records
         ]
 
         return db_obj
@@ -170,6 +217,9 @@ class MessageSummaryModel(ContextItemModel):
                 entity.aliases[0].alias for entity in db_obj.entities
             ],
             importance=cls._get_importance_string(db_obj.importance),
+            created_at_message_index=db_obj.created_at_message_index,
+            updated_at_message_index=db_obj.updated_at_message_index,
+            usage_records=[UsageRecordModel.from_db(record) for record in db_obj.usage_records]
         )
 
     def to_db(self, session, db_class):
