@@ -68,9 +68,6 @@ class UsageRecord(Base):
 
     __table_args__ = (CheckConstraint("usefulness >= 0 AND usefulness <= 2"),)
 
-    def __str__(self):
-        return f"Usage at message {self.created_at_message_index} (usefulness: {self.usefulness})"
-
 
 class ContextItem(Base):
     __tablename__ = "context_items"
@@ -96,9 +93,6 @@ class ContextItem(Base):
     retired_by: Mapped[int] = mapped_column(
         ForeignKey("context_items.id"), nullable=True
     )
-
-    def __str__(self):
-        return f"Context Item {self.id} (importance: {self.importance}, salience: {self.salience})"
 
     @property
     def times_provided(self):
@@ -133,8 +127,7 @@ class Message(Base):
     summary: Mapped["MessageSummary"] = relationship(back_populates="messages")
 
     def __str__(self):
-        preview = self.body[:30] + "..." if len(self.body) > 30 else self.body
-        return f"Message from {self.sender.name}: '{preview}'"
+        return self.body
 
 
 # todo may need an 'in world time' for fiction?
@@ -154,8 +147,7 @@ class MessageSummary(ContextItem):
     messages: Mapped[List["Message"]] = relationship(back_populates="summary")
 
     def __str__(self):
-        preview = self.body[:30] + "..." if len(self.body) > 30 else self.body
-        return f"Summary: {preview}"
+        return self.body
 
 
 class Entity(Base):
@@ -173,10 +165,7 @@ class Entity(Base):
     )
 
     def __str__(self):
-        if self.aliases:
-            return self.aliases[0].alias
-        else:
-            return self.brief
+        return ", ".join([alias.alias for alias in self.aliases]) + "\n" + self.brief
 
 
 class EntityAlias(Base):
@@ -230,11 +219,7 @@ class Fact(ContextItem):
     )
 
     def __str__(self):
-        preview = self.body[:30] + "..." if len(self.body) > 30 else self.body
-        if self.fact_type.name != "BASE":
-            return f"{self.fact_type.name}: {preview}"
-        else:
-            return preview
+        return self.body
 
     # supported_theories: Mapped[List["Fact"]] = relationship(
     #     secondary=theory_evidence_association,
