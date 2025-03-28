@@ -6,7 +6,6 @@ from typing import Type
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.messages import (
-    ModelMessagesTypeAdapter,
     TextPart,
     ModelResponse,
     ModelRequest,
@@ -15,6 +14,8 @@ from pydantic_ai.messages import (
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.result import ResultDataT
+
+from src.db import DbModel
 
 PROJECT_ROOT = Path(__file__).resolve().parents
 for parent in PROJECT_ROOT:
@@ -50,28 +51,40 @@ class Role(enum.Enum):
     ASSISTANT = "assistant"
 
 
-class ChatMessage:
-    def __init__(
-        self,
-        content: str,
-        role: Role = Role.USER,
-        ephemeral=False,
-        hidden=False,
-        db_id=None,
-    ):
-        if role == Role.SYSTEM:
-            role = Role.USER
-            content = f"SYSTEM: {content}"
-        if not content:
+class ChatMessage(DbModel):
+    content: str
+    role: Role
+    ephemeral: bool = False
+    hidden: bool = False
+    num_words: int = None
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.role == Role.SYSTEM:
+            self.role = Role.USER
+            self.content = f"SYSTEM: {self.content}"
+        if not self.content:
             raise ValueError("Message cannot be empty")
+        self.num_words = len(self.content.split())
 
-        self.content = content
-        self.role = role
-        self.ephemeral = ephemeral
-        self.hidden = hidden
-        self.db_id = db_id
+    @classmethod
+    def from_db(cls, db_obj):
+        return cls(
+            db_id=db_obj.id,
+            content=db_obj.body,
+            role=db_obj.sender,
+            ephemeral=False,  # These aren't stored in DB
+            hidden=False,
+        )
 
-        self.num_words = len(content.split())
+    def to_db(self, session, db_class):
+        db_obj = db_class(
+            body=self.content,
+            sender=self.role,
+        )
+        if self.db_id:
+            db_obj.id = self.db_id
+        return db_obj
 
     def __str__(self):
         return f"{self.role.value}: {self.content}\n"
@@ -128,9 +141,9 @@ class Conversation:
         #     response_text = input("Enter your response: ")
         #     response = None
         # else:
-        llm_friendly_messages = [
-            message.to_llm_friendly() for message in message_to_show
-        ]
+        # llm_friendly_messages = [
+        #     message.to_llm_friendly() for message in message_to_show
+        # ]
         active_result_type = result_type or self.result_type
         if active_result_type is None:
             active_result_type = str

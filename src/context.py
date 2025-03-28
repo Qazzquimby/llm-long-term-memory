@@ -1,11 +1,35 @@
-from abc import ABC
-from typing import List, Literal
+from abc import ABC, abstractmethod
+from typing import List, Literal, TypeVar, Optional, Type
 
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from db import MessageSummary, Entity, Fact
+from db import MessageSummary, Entity, Fact, Base
 from src.conversation import ChatMessage
+
+
+T = TypeVar("T")
+
+
+class DbModel(BaseModel, ABC):
+    """Base class for all Pydantic models that sync with the database"""
+
+    db_id: Optional[int] = None
+
+    @classmethod
+    @abstractmethod
+    def from_db(cls: Type[T], db_obj) -> T:
+        """Convert from SQLAlchemy model to this Pydantic model"""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def to_db(self, session: Session, db_class) -> Base:
+        """Convert this Pydantic model to a SQLAlchemy model"""
+        raise NotImplementedError()
+
+    def sync_id(self, db_obj):
+        """Update this model's db_id from a database object"""
+        self.db_id = db_obj.id
 
 
 # todo prevent multiple entities with same primary alias?
