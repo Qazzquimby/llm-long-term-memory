@@ -79,30 +79,14 @@ class ChatLoop(ABC):
             else:
                 part_lengths = None
 
-            # warn against exact duplicate message
-            duplicate_message = (
-                session.query(Message).filter(Message.body == message.content).first()
+            db_message = Message(
+                body=message.content,
+                sender=message.role,
+                part_lengths=part_lengths,
             )
-            should_add_new_message = True
-            if duplicate_message:
-                # doesn't handle rng. Maybe better to assert alternating human ai
-                if duplicate_message.body == self.conversation.messages[-1].content:
-                    print("WARN: New message duplicates the previous message.")
-                    should_add_new_message = False
-                else:
-                    print(
-                        "WARN: New message duplicates a message from earlier in the chat."
-                    )
-
-            if should_add_new_message:
-                db_message = Message(
-                    body=message.content,
-                    sender=message.role,
-                    part_lengths=part_lengths,
-                )
-                session.add(db_message)
-                session.commit()
-                message.db_id = db_message.id
+            session.add(db_message)
+            session.commit()
+            message.db_id = db_message.id
 
         if previous_messages is None:
             previous_messages = []
