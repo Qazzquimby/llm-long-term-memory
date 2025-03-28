@@ -10,8 +10,10 @@ from src.conversation import ChatMessage
 
 
 class TextAdventureResponseModel(BaseModel):
+    """Follow directions carefully. If the past LLM did not meet requirements, it is up to *you* to do better than them, not follow in their path."""
+
     thinking: str = Field(
-        description="Think things through before moving on, in a few sentences. *Do not recap*. Stay concise and strategic."
+        description="Think things through before moving on, in just a few sentences. Only cover new thoughts, *do not recap previous thoughts*. Stay concise and strategic."
     )
     commands: List[str] = Field(
         description="List of verbatim commands that will be input to the game. You should usually send only one, unless you have good reason, since you won't see the response until after all commands have been input."
