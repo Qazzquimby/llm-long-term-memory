@@ -1,4 +1,4 @@
-from src.context import get_assistant_context
+from src.context import get_assistant_context, AssistantContext
 from src.context_evaluation import evaluate_context
 from src.conversation import Role, Conversation
 
@@ -25,7 +25,7 @@ async def get_context_after_consolidation(session, messages):
         conversation.add_message(message=message)
 
         if message.role == Role.USER:
-            last_context = get_assistant_context(session)
+            last_context = AssistantContext(session=session)
 
         elif message.role == Role.ASSISTANT:
             await evaluate_context(

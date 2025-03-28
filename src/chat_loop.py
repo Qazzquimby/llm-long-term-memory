@@ -148,7 +148,7 @@ class ChatLoop(ABC):
                     message=ChatMessage(content=environment_input)
                 )
 
-        context = get_assistant_context(self.session)
+        context = AssistantContext(session=self.session)
         if str(context):
             self.conversation.add_message(
                 message=ChatMessage(

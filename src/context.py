@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import List, Literal
 
 from pydantic import BaseModel, Field
@@ -12,6 +13,8 @@ from src.conversation import ChatMessage
 
 
 # todo prevent multiple entities with same primary alias?
+#  more specifically we want them to be appropriately merged.
+#  could keep earliest, could keep latest, could request merge (probably increasing in length)
 class EntityModel(BaseModel):
     aliases: List[str] = Field(
         description="1 or more names for the entity. Make the first one the most clear and canonical, as it will be used by default."
@@ -61,32 +64,32 @@ class MessageSummaryModel(ContextItemModel):
     )
 
 
-class AssistantContext:
+class Context(ABC):
     def __init__(self, session: Session):
         self.message_summaries = session.query(MessageSummary).all()
-
         self.entities = session.query(Entity).all()
-
         self.facts = session.query(Fact).all()
+        # todo these facts will have int importances
+        #   need dedicated saving and loading
 
-        return
+        # TODO want to rank these.
+        # sklearn random forest or mlp to turn the following metrics into the final score
+        # estimating a usefulness score from 0-1 based on UsageRecord.usefulness (normalized)
 
-    # TODO want to rank these.
-    # sklearn random forest or mlp to turn the following metrics into the final score
-    # estimating a usefulness score from 0-1 based on UsageRecord.usefulness (normalized)
+        # metrics
+        # age, age since updated
+        # importance
+        # salience
+        # LATER keyword matching to recent context, especially last couple messages. Need to implement first.
+        # LATER embedding relevance to the same. Need to implement first.
+        # past usages
+        # usefulness scores across past usages. Just the average or maybe something more clever.
+        # context relevant to other relevant context for explainability
+        # Later look at relationships between items
+        # ?prefer items that were in previous contexts? May be redundant given the above
 
-    # metrics
-    # age, age since updated
-    # importance
-    # salience
-    # LATER keyword matching to recent context, especially last couple messages. Need to implement first.
-    # LATER embedding relevance to the same. Need to implement first.
-    # past usages
-    # usefulness scores across past usages. Just the average or maybe something more clever.
-    # context relevant to other relevant context for explainability
-    # Later look at relationships between items
-    # ?prefer items that were in previous contexts? May be redundant given the above
 
+class AssistantContext(Context):
     def __str__(self):
         context_parts = []
 
@@ -108,23 +111,7 @@ class AssistantContext:
         return "\n".join(context_parts)
 
 
-def get_assistant_context(session: Session) -> AssistantContext:
-    context = AssistantContext(session=session)
-    return context
-
-
-class ConsolidatorContext:
-    def __init__(self, session: Session):
-        self.message_summaries = session.query(MessageSummary).all()
-
-        self.entities = session.query(Entity).all()
-
-        self.facts = session.query(Fact).all()
-        # todo these will be int importances
-        # need dedicated saving and loading
-
-        return
-
+class ConsolidatorContext(Context):
     def __str__(self):
         parts = []
         if self.message_summaries:
@@ -147,6 +134,7 @@ class ConsolidatorContext:
                 "\n\n".join([f"{i}: {fact}" for i, fact in enumerate(self.facts)])
             )
 
+        # todo badly mangled
         return "\n\n".join(parts)
 
 
