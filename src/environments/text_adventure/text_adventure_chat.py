@@ -11,7 +11,7 @@ from src.conversation import ChatMessage
 
 class TextAdventureResponseModel(BaseModel):
     thinking: str = Field(
-        description="Think things through before moving on. It helps to stay concise and strategic, and not repeat information from your previous 'thinking's."
+        description="Think things through before moving on, in a few sentences. *Do not recap*. Stay concise and strategic."
     )
     commands: List[str] = Field(
         description="List of verbatim commands that will be input to the game. You should usually send only one, unless you have good reason, since you won't see the response until after all commands have been input."
@@ -80,7 +80,7 @@ Anchorhead...
             setup_commands = self.extract_commands_from_db()
             game_start_text = await self.game.start(setup_commands=setup_commands)
             if setup_commands:
-                return game_start_text  # todo may possibly replay last observation.
+                return game_start_text
             else:
                 return start_prompt + game_start_text
         else:
