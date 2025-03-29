@@ -87,8 +87,10 @@ class ContextWindow(ABC):
 
         all_entities = EntityModel.get_all(session=session)
 
+        most_recent_message_index = messages[-1].db_id
+
         all_scored = [
-            ScoredContextItem.from_item(item)
+            ScoredContextItem.from_item(item, most_recent_message_index)
             for item in all_message_summaries + all_facts
         ]
         by_score = sorted(all_scored, key=lambda x: x.total_score, reverse=True)
@@ -110,8 +112,8 @@ class ContextWindow(ABC):
 
         relevant_aliases = set()
         for context_item in relevant_message_summaries + relevant_facts:
-            if "relevant_entity_names" in context_item.item.__dict__:
-                relevant_aliases.update(context_item.item.relevant_entity_names)
+            if "relevant_entity_names" in context_item.__dict__:
+                relevant_aliases.update(context_item.relevant_entity_names)
 
         relevant_entities = [
             entity for entity in all_entities if entity.aliases[0] in relevant_aliases

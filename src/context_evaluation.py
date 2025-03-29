@@ -7,8 +7,9 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from sqlalchemy.orm import Session
 
 from src.context import AssistantContextWindow
-from src.conversation import sonnet_37, OPENROUTER_API_KEY, Conversation, v3
+from src.conversation import OPENROUTER_API_KEY, Conversation, v3
 from src.db import UsageRecord, Role
+from src.models import ContextItemModel
 
 
 class ContextItemEvaluation(BaseModel):
@@ -126,9 +127,9 @@ Please evaluate how useful each piece of context was for generating your respons
         item_id = evaluation.id
 
         if item_id in context_items_by_id:
-            context_item = context_items_by_id[item_id]
+            context_item: ContextItemModel = context_items_by_id[item_id]
             usage_record = UsageRecord(
-                context_item_id=context_item.id,
+                context_item_id=context_item.db_id,
                 created_at_message_index=message_index,
                 usefulness=evaluation.usefulness,
             )
